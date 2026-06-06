@@ -19,7 +19,7 @@ def to_f(s):
     except:
         return 0.0
 
-def parse_bcf_gls(file_obj, annee=None, mois=None, sgo_gls_manuel=None, sgo_dpd_manuel=None):
+def parse_bcf_gls(file_obj, annee=None, mois=None, sgo_gls_manuel=None, sgo_dpd_manuel=None, taux_avis_dpd=0.05, cout_avis_dpd=1.0):
     """
     Parse un BCF GLS (CSV ;) et simule les coûts DPD équivalents.
     Retourne un dict avec stats complètes.
@@ -104,6 +104,9 @@ def parse_bcf_gls(file_obj, annee=None, mois=None, sgo_gls_manuel=None, sgo_dpd_
         'total_ncy_ht': 0.0, 'nb_ncy': 0,
         'total_retour_ht': 0.0, 'nb_retour': 0,
         'nb_multicolis_9_10kg': 0, 'surcoût_multicolis_ht': 0.0,
+        'taux_avis_dpd': taux_avis_dpd,
+        'cout_avis_dpd': cout_avis_dpd,
+        'surcoût_avis_dpd_ht': 0.0,
         'par_pays': defaultdict(lambda: {'nb': 0, 'gls': 0.0, 'dpd': 0.0, 'ncy': 0.0}),
         'par_zone': defaultdict(lambda: {'nb': 0, 'gls': 0.0, 'dpd': 0.0, 'ncy': 0.0}),
         'par_format': defaultdict(lambda: {'nb': 0, 'gls': 0.0, 'dpd': 0.0, 'ncy': 0.0}),
@@ -141,7 +144,9 @@ def parse_bcf_gls(file_obj, annee=None, mois=None, sgo_gls_manuel=None, sgo_dpd_
         # Totaux
         gls_total = (d['gls_transport'] + d['gls_surcharges_geo_gls'] +
                      d['gls_retour'] + d['gls_ncy'])
-        dpd_total = dpd_t + d['gls_surcharges_geo_dpd'] + dpd_retour
+        # Surcoût avisés DPD estimé (taux configuré × tarif négocié)
+        dpd_avis = taux_avis_dpd * cout_avis_dpd
+        dpd_total = dpd_t + d['gls_surcharges_geo_dpd'] + dpd_retour + dpd_avis
 
         # Format colis
         if poids <= 0:
@@ -198,6 +203,7 @@ def parse_bcf_gls(file_obj, annee=None, mois=None, sgo_gls_manuel=None, sgo_dpd_
         stats['nb_colis'] += 1
         stats['total_gls_ht'] += gls_total
         stats['total_dpd_ht'] += dpd_total
+        stats['surcoût_avis_dpd_ht'] += dpd_avis
         if IS_MULTICOLIS:
             stats['nb_multicolis_9_10kg'] += 1
             # Surcoût = DPD 2 colis - ce qu'aurait coûté 1 colis DPD normal

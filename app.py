@@ -178,6 +178,10 @@ with st.sidebar:
     cfg['volumetrique_barre'] = st.checkbox("✅ Volumétrique barré", value=cfg['volumetrique_barre'])
     cfg['predict_actif'] = st.checkbox("✅ Predict actif", value=cfg['predict_actif'])
     cfg['cout_avis'] = st.number_input("Tarif avisé (€)", value=cfg['cout_avis'], step=0.5, min_value=0.5, max_value=4.0)
+    cfg['taux_avis'] = st.slider("Taux avisés estimé (%)", 0.0, 15.0,
+        value=cfg.get('taux_avis', 3.0), step=0.5,
+        help="3% optimiste (Predict actif) / 5% réaliste / 9% pessimiste")
+    st.markdown(f"<small>Surcoût avisés : ~<b>{cfg['taux_avis']/100*cfg['cout_avis']:.3f}€</b>/colis DPD</small>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("### 🔶 Profils NCY")
@@ -236,7 +240,9 @@ with col_gls:
                     sg_f,sd_f = sg_h,sd_h
                     lbl = f"{mois_gls} {annee_gls}" if len(gls_files)==1 else f.name
                 with st.spinner(f"Analyse {lbl}..."):
-                    s,e = parse_bcf_gls(f, sgo_gls_manuel=sg_f, sgo_dpd_manuel=sd_f)
+                    s,e = parse_bcf_gls(f, sgo_gls_manuel=sg_f, sgo_dpd_manuel=sd_f,
+                    taux_avis_dpd=st.session_state.dpd_config.get('taux_avis',3.0)/100,
+                    cout_avis_dpd=st.session_state.dpd_config.get('cout_avis',1.0))
                 if e: st.error(f"{lbl}: {e}")
                 else:
                     s['label'] = lbl
@@ -352,6 +358,12 @@ with tab1:
                 <div class="eco-proj">Projection 12 mois : <b>{proj:,.0f}€ TTC/an</b> &nbsp;·&nbsp; soit <b>{proj/12:,.0f}€/mois</b></div>
             </div>""".replace(',', ' '), unsafe_allow_html=True)
 
+            # Alerte surcoût avisés DPD
+            tot_surc_avis = sum(m.get('surcoût_avis_dpd_ht',0) for m in st.session_state.gls_data)
+            cfg_avis = st.session_state.dpd_config
+            if tot_surc_avis > 0:
+                msg = f'<div class="alert-gold">⚠️ Surcoût avisés DPD intégré : <b>{tot_surc_avis*1.2:,.0f}€ TTC</b> ({cfg_avis.get("taux_avis",3):.1f}% × {cfg_avis.get("cout_avis",1):.2f}€/avisé) — inclus dans simulation</div>'.replace(',', ' ')
+                st.markdown(msg, unsafe_allow_html=True)
             for m in st.session_state.gls_data:
                 for a in m.get('alertes',[]):
                     if '⚠️' in a: st.markdown(f'<div class="alert-gold">{a}</div>', unsafe_allow_html=True)
