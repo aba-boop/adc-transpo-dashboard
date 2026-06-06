@@ -21,6 +21,40 @@ from utils.tarifs import (
 
 st.set_page_config(page_title="ADC — Transpo Dashboard", page_icon="🚚", layout="wide")
 
+def check_password():
+    """Vérifie le mot de passe avant d'afficher le dashboard."""
+    def password_entered():
+        if st.session_state["password"] == st.secrets.get("PASSWORD", "adc2026"):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if st.session_state.get("password_correct", False):
+        return True
+
+    # Page de login
+    st.markdown("""
+    <div style="max-width:400px;margin:120px auto;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">🚚</div>
+        <div style="font-size:24px;font-weight:800;color:#F0F2F8;margin-bottom:8px;">Transpo Dashboard</div>
+        <div style="font-size:13px;color:#5a6080;margin-bottom:32px;">Allée du Commerce — Marseille</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.text_input("Mot de passe", type="password",
+                      on_change=password_entered, key="password",
+                      placeholder="Entrez le mot de passe...")
+        if "password_correct" in st.session_state and not st.session_state["password_correct"]:
+            st.error("❌ Mot de passe incorrect")
+    return False
+
+if not check_password():
+    st.stop()
+
+
 # ─── CSS ─────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
