@@ -2,10 +2,11 @@
 headless = true
 enableCORS = false
 enableXsrfProtection = false
+maxUploadSize = 500
 
 [theme]
 primaryColor = "#E8B84B"
-backgroundColor = "#0A0C12"
-secondaryBackgroundColor = "#141720"
+backgroundColor = "#07090f"
+secondaryBackgroundColor = "#0a0c14"
 textColor = "#F0F2F8"
 font = "sans serif"
