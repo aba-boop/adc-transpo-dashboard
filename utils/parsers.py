@@ -103,6 +103,7 @@ def parse_bcf_gls(file_obj, annee=None, mois=None, sgo_gls_manuel=None, sgo_dpd_
         'total_gls_ht': 0.0, 'total_dpd_ht': 0.0,
         'total_ncy_ht': 0.0, 'nb_ncy': 0,
         'total_retour_ht': 0.0, 'nb_retour': 0,
+        'nb_multicolis_9_10kg': 0, 'surcoût_multicolis_ht': 0.0,
         'par_pays': defaultdict(lambda: {'nb': 0, 'gls': 0.0, 'dpd': 0.0, 'ncy': 0.0}),
         'par_zone': defaultdict(lambda: {'nb': 0, 'gls': 0.0, 'dpd': 0.0, 'ncy': 0.0}),
         'par_format': defaultdict(lambda: {'nb': 0, 'gls': 0.0, 'dpd': 0.0, 'ncy': 0.0}),
@@ -122,7 +123,17 @@ def parse_bcf_gls(file_obj, annee=None, mois=None, sgo_gls_manuel=None, sgo_dpd_
             poids = sum(pm) / len(pm) if pm else poids_global
 
         # Calcul DPD transport
-        _, dpd_t = cout_dpd(poids, pays, sgo_dpd)
+        # Colis 9-10kg cerclés (>300cm) → refusés DPD → 2 colis nécessaires
+        # 50% : 2 grandes valises (308cm) → 2×5kg
+        # 50% : 3 cabines (339cm) → 6kg+3kg
+        IS_MULTICOLIS = 9.0 <= poids <= 10.0
+        if IS_MULTICOLIS:
+            _, dpd_5kg = cout_dpd(5.0, pays, sgo_dpd)
+            _, dpd_6kg = cout_dpd(6.0, pays, sgo_dpd)
+            _, dpd_3kg = cout_dpd(3.0, pays, sgo_dpd)
+            dpd_t = 0.5 * (dpd_5kg * 2) + 0.5 * (dpd_6kg + dpd_3kg)
+        else:
+            _, dpd_t = cout_dpd(poids, pays, sgo_dpd)
 
         # Retour DPD = même coût que aller DPD
         dpd_retour = dpd_t if d['gls_retour'] > 0 else 0.0
@@ -187,6 +198,11 @@ def parse_bcf_gls(file_obj, annee=None, mois=None, sgo_gls_manuel=None, sgo_dpd_
         stats['nb_colis'] += 1
         stats['total_gls_ht'] += gls_total
         stats['total_dpd_ht'] += dpd_total
+        if IS_MULTICOLIS:
+            stats['nb_multicolis_9_10kg'] += 1
+            # Surcoût = DPD 2 colis - ce qu'aurait coûté 1 colis DPD normal
+            _, dpd_1_colis = cout_dpd(poids, pays, sgo_dpd)
+            stats['surcoût_multicolis_ht'] += dpd_t - dpd_1_colis
         stats['total_ncy_ht'] += d['gls_ncy']
         if d['gls_ncy'] > 0:
             stats['nb_ncy'] += 1
