@@ -10,6 +10,7 @@ import io
 from datetime import datetime
 
 from utils.parsers import parse_bcf_gls
+from utils.controle import controler_bcf_gls
 from utils.tarifs import (
     cout_gls, cout_dpd, get_sgo_mois, scraper_sgo_gls, scraper_sgo_dpd,
     GLS_FR, DPD_FR, GLS_EU, DPD_EU, PAYS_ZONE_GLS, PAYS_ZONE_DPD,
@@ -158,8 +159,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─── TABS ─────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📊 Synthèse", "💰 Coûts détaillés", "🌍 Géographie", "🔢 Simulateur", "📈 Historique", "🏆 Score"
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    "📊 Synthèse", "💰 Coûts détaillés", "🌍 Géographie", "🔢 Simulateur", "📈 Historique", "🏆 Score", "🔍 Contrôle"
 ])
 
 def fmt_eur(v, ttc=False):
@@ -586,3 +587,196 @@ with tab6:
                 file_name=f"ADC_transpo_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 7 — CONTRÔLE FACTURATION
+# ════════════════════════════════════════════════════════════════════════════
+with tab7:
+    st.markdown('<div class="section-title">🔍 Contrôle Facturation GLS</div>', unsafe_allow_html=True)
+    st.markdown("Vérifie chaque ligne du BCF contre tes grilles contractuelles — détecte les erreurs de facturation.")
+
+    ctrl_file = st.file_uploader("BCF GLS à contrôler (CSV)", type=['csv'], key='ctrl_bcf')
+
+    if ctrl_file:
+        with st.spinner("Analyse en cours..."):
+            ctrl_stats, ctrl_err = controler_bcf_gls(ctrl_file)
+
+        if ctrl_err:
+            st.error(f"Erreur : {ctrl_err}")
+        else:
+            nb_a = ctrl_stats['nb_anomalies']
+            surf = ctrl_stats['montant_surcharge_injustifiee']
+            sous = ctrl_stats['montant_sous_facture']
+
+            # KPIs
+            c1, c2, c3, c4 = st.columns(4)
+            style_a = 'red' if nb_a > 0 else 'green'
+            with c1: st.markdown(kpi("Colis analysés", f"{ctrl_stats['nb_colis']:,}".replace(',', ' '), f"{ctrl_stats['nb_lignes']} lignes"), unsafe_allow_html=True)
+            with c2: st.markdown(kpi("Anomalies détectées", str(nb_a), "lignes en écart", style_a), unsafe_allow_html=True)
+            with c3: st.markdown(kpi("Surfacturation HT", f"{surf:,.2f}€".replace(',', ' '), "à réclamer à GLS", 'red' if surf > 0 else 'green'), unsafe_allow_html=True)
+            with c4: st.markdown(kpi("Sous-facturation HT", f"{sous:,.2f}€".replace(',', ' '), "en ta faveur", 'gold'), unsafe_allow_html=True)
+
+            if nb_a == 0:
+                st.markdown('<div class="alert-green">✅ Aucune anomalie détectée — la facturation GLS semble correcte sur ce BCF.</div>', unsafe_allow_html=True)
+            else:
+                # Résumé par type
+                st.markdown('<div class="section-title">Anomalies par type</div>', unsafe_allow_html=True)
+                type_rows = []
+                for t, nb in sorted(ctrl_stats['par_type'].items(), key=lambda x: -abs(ctrl_stats['par_type_montant'][x[0]])):
+                    montant = ctrl_stats['par_type_montant'][t]
+                    type_rows.append({
+                        'Type anomalie': t,
+                        'Nb cas': nb,
+                        'Impact HT total': f"{montant:+,.2f}€".replace(',', ' '),
+                        'Impact TTC': f"{montant*1.2:+,.2f}€".replace(',', ' '),
+                        'Action': '⚡ Réclamer' if montant > 0 else '✅ En ta faveur',
+                    })
+                st.dataframe(pd.DataFrame(type_rows), use_container_width=True, hide_index=True)
+
+                # Tableau détaillé
+                st.markdown('<div class="section-title">Détail des anomalies</div>', unsafe_allow_html=True)
+
+                # Filtres
+                col_f1, col_f2 = st.columns(2)
+                with col_f1:
+                    types_dispo = ['Tous'] + list(ctrl_stats['par_type'].keys())
+                    filtre_type = st.selectbox("Filtrer par type", types_dispo)
+                with col_f2:
+                    filtre_gravite = st.selectbox("Filtrer par gravité", ['Toutes', '🔴 Élevée', '🟡 Faible'])
+
+                df_a = ctrl_stats['anomalies_df'].copy()
+                if filtre_type != 'Tous':
+                    df_a = df_a[df_a['Type'] == filtre_type]
+                if filtre_gravite != 'Toutes':
+                    df_a = df_a[df_a['Gravité'] == filtre_gravite]
+
+                st.dataframe(df_a, use_container_width=True, hide_index=True)
+
+                # Export anomalies
+                if len(df_a) > 0:
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        df_a.to_excel(writer, sheet_name='Anomalies', index=False)
+                        pd.DataFrame(type_rows).to_excel(writer, sheet_name='Résumé', index=False)
+                    st.download_button(
+                        "📥 Exporter les anomalies Excel",
+                        data=output.getvalue(),
+                        file_name=f"GLS_anomalies_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+
+                    if surf > 10:
+                        st.markdown(f'<div class="alert-red">⚠️ <strong>{surf:,.2f}€ HT ({surf*1.2:,.2f}€ TTC) de surfacturation détectée</strong> — prépare un dossier de réclamation GLS.</div>'.replace(',', ' '), unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="background:#141720;border-radius:12px;padding:24px;border:1px solid #1e2235;margin-top:16px;">
+            <div style="font-size:14px;font-weight:700;color:#F0F2F8;margin-bottom:12px;">Ce module vérifie :</div>
+            <div style="font-size:13px;color:#5a6080;line-height:2;">
+                🔴 <b>Barème poids incorrect</b> — tarif facturé ≠ grille contractuelle<br>
+                🔴 <b>CSR incorrect</b> — doit être exactement 0,71€/colis<br>
+                🔴 <b>SGO incorrect</b> — vérifié contre l'historique mensuel<br>
+                🔴 <b>NCY injustifiée</b> — appliquée sur un colis < 4,5 kg<br>
+                🔴 <b>Double NCY</b> — deux surcharges NCY sur le même colis<br>
+                🟡 <b>PER incorrect</b> — doit être 1,5% sur (barème + CSR)
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ════════════════════════════════════════════════════════════════════════════
+# SIDEBAR — CONFIG CONTRACTUELLE DPD + IMPORT BCF DPD
+# ════════════════════════════════════════════════════════════════════════════
+# (Ajout dans la sidebar existante via st.sidebar context)
+
+from utils.parser_dpd import parse_bcf_dpd
+
+if 'dpd_data' not in st.session_state:
+    st.session_state.dpd_data = []
+
+if 'dpd_config' not in st.session_state:
+    st.session_state.dpd_config = {
+        'has_zebra': True,
+        'volumetrique_barre': True,
+        'predict_actif': True,
+        'cout_avis': 1.0,
+    }
+
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 8 — BCF DPD + CONTRÔLE CONTRACTUEL
+# ════════════════════════════════════════════════════════════════════════════
+with st.expander("📋 Configuration contrat DPD", expanded=False):
+    st.markdown("**Mon équipement & options :**")
+    cfg = st.session_state.dpd_config
+    cfg['has_zebra']          = st.checkbox("✅ J'ai ma propre imprimante Zebra (→ alerte si 60€/mois facturé)", value=cfg['has_zebra'])
+    cfg['volumetrique_barre'] = st.checkbox("✅ Poids volumétrique barré dans mon contrat", value=cfg['volumetrique_barre'])
+    cfg['predict_actif']      = st.checkbox("✅ Je transmets tél + email systématiquement (Predict)", value=cfg['predict_actif'])
+    cfg['cout_avis']          = st.number_input("Tarif avisé négocié (€/colis)", value=cfg['cout_avis'], step=0.5, min_value=0.5, max_value=4.0)
+    st.markdown(f"<small>Tarif catalogue DPD = 4€ / Tarif observé client valises = 1€</small>", unsafe_allow_html=True)
+
+st.markdown("### 📦 Importer un BCF DPD")
+dpd_label  = st.text_input("Label mois DPD", value="Juillet 2026", key='dpd_label')
+dpd_file   = st.file_uploader("BCF DPD (Excel .xlsx)", type=['xlsx','xls'], key='dpd_file')
+
+if st.button("➕ Analyser BCF DPD", type="secondary", use_container_width=True):
+    if dpd_file:
+        with st.spinner(f"Analyse DPD {dpd_label}..."):
+            dpd_stats, dpd_err = parse_bcf_dpd(
+                dpd_file,
+                config=st.session_state.dpd_config,
+                sgo_dpd_manuel=sgo_dpd_input/100,
+            )
+            if dpd_err:
+                st.error(f"Erreur : {dpd_err}")
+            else:
+                dpd_stats['label'] = dpd_label
+                st.session_state.dpd_data = [d for d in st.session_state.dpd_data if d['label'] != dpd_label]
+                st.session_state.dpd_data.append(dpd_stats)
+                st.success(f"✅ {dpd_label} — {dpd_stats['nb_colis']} colis DPD analysés")
+                # Afficher alertes immédiatement
+                for alerte in dpd_stats.get('alertes', []):
+                    if '🔴' in alerte:
+                        st.error(alerte)
+                    elif '⚠️' in alerte or '🟡' in alerte:
+                        st.warning(alerte)
+                    else:
+                        st.info(alerte)
+    else:
+        st.warning("Sélectionne un fichier BCF DPD")
+
+if st.session_state.dpd_data:
+    st.markdown("**BCF DPD chargés :**")
+    for d in st.session_state.dpd_data:
+        eco = d.get('economie_vs_gls_ttc', 0)
+        st.markdown(f"<small>🔴 {d['label']} ({d['nb_colis']} colis) — vs GLS : {eco:+,.0f}€ TTC</small>".replace(',', ' '), unsafe_allow_html=True)
+
+# Section DPD dans la synthèse (si données DPD dispo)
+if st.session_state.dpd_data and tab1:
+    with tab1:
+        st.markdown('<div class="section-title">📦 Analyse BCF DPD réels</div>', unsafe_allow_html=True)
+
+        for dpd_s in st.session_state.dpd_data:
+            st.markdown(f"**{dpd_s['label']}** — {dpd_s['nb_colis']} colis")
+
+            c1,c2,c3,c4,c5 = st.columns(5)
+            with c1: st.markdown(kpi("Facture DPD HT", fmt_eur(dpd_s['total_facture_ht']), "réel"), unsafe_allow_html=True)
+            with c2: st.markdown(kpi("Facture DPD TTC", fmt_eur(dpd_s['total_facture_ttc'],True), ""), unsafe_allow_html=True)
+            with c3: st.markdown(kpi("GLS théorique HT", fmt_eur(dpd_s['gls_theorique_ht']), "simulation"), unsafe_allow_html=True)
+            with c4:
+                eco = dpd_s['economie_vs_gls_ttc']
+                style = 'green' if eco > 0 else 'red'
+                st.markdown(kpi("Économie vs GLS TTC", fmt_eur(eco,True), "", style), unsafe_allow_html=True)
+            with c5:
+                st.markdown(kpi("Taux avisés", f"{dpd_s['taux_avis_pct']:.1f}%",
+                               "cible < 5%", 'green' if dpd_s['taux_avis_pct'] < 5 else 'red'), unsafe_allow_html=True)
+
+            # Alertes
+            for alerte in dpd_s.get('alertes', []):
+                if '🔴' in alerte:
+                    st.markdown(f'<div class="alert-red">{alerte}</div>', unsafe_allow_html=True)
+                elif '⚠️' in alerte or '🟡' in alerte:
+                    st.markdown(f'<div class="alert-gold">{alerte}</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div class="alert-green">{alerte}</div>', unsafe_allow_html=True)
+
+            # Anomalies
+            if len(dpd_s.get('anomalies_df', pd.DataFrame())) > 0:
+                st.dataframe(dpd_s['anomalies_df'], use_container_width=True, hide_index=True)
