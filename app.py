@@ -25,22 +25,88 @@ st.set_page_config(page_title="ADC — Transpo Dashboard", page_icon="🚚", lay
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-html,body,[class*="css"]{font-family:'Syne',sans-serif;}
-.badge-gls{background:#1a2a5e;color:#93b4fd;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;}
-.badge-dpd{background:#5e1a1a;color:#fca5a5;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;}
-.alert-gold{background:#1e1800;border:1px solid #E8B84B;border-radius:8px;padding:10px 14px;color:#fde68a;font-size:13px;margin:4px 0;}
-.alert-green{background:#001a10;border:1px solid #22c55e;border-radius:8px;padding:10px 14px;color:#86efac;font-size:13px;margin:4px 0;}
-.alert-red{background:#1a0000;border:1px solid #ef4444;border-radius:8px;padding:10px 14px;color:#fca5a5;font-size:13px;margin:4px 0;}
-.section-title{font-size:16px;font-weight:800;color:#F0F2F8;padding-bottom:8px;border-bottom:1px solid #1e2235;margin:16px 0 10px 0;}
-.big-eco{font-size:48px;font-weight:800;font-family:'DM Mono',monospace;text-align:center;}
-.eco-pos{color:#22c55e;}.eco-neg{color:#ef4444;}
-.import-box{background:#141720;border:1px solid #1e2235;border-radius:12px;padding:20px;}
+
+/* ── BASE ── */
+html,body,[class*="css"]{font-family:'Syne',sans-serif;background:#07090f;}
+.stApp{background:#07090f;}
+section[data-testid="stSidebar"]{background:#0a0c14;border-right:1px solid #1a1e2e;}
+.stTabs [data-baseweb="tab-list"]{background:#0a0c14;border-radius:12px;padding:4px;gap:2px;}
+.stTabs [data-baseweb="tab"]{border-radius:8px;color:#5a6080;font-weight:600;font-size:13px;}
+.stTabs [aria-selected="true"]{background:#141720 !important;color:#F0F2F8 !important;}
+button[kind="primary"]{background:linear-gradient(135deg,#E8B84B,#f0c96a) !important;color:#07090f !important;font-weight:800 !important;border:none !important;border-radius:10px !important;transition:all .2s !important;}
+button[kind="primary"]:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(232,184,75,.4) !important;}
+
+/* ── BADGES ── */
+.badge-gls{background:linear-gradient(135deg,#1a2a5e,#1e3270);color:#93b4fd;padding:5px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid #2a3a7e;display:inline-block;}
+.badge-dpd{background:linear-gradient(135deg,#5e1a1a,#721e1e);color:#fca5a5;padding:5px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid #8a2a2a;display:inline-block;}
+
+/* ── KPI CARDS ── */
+.kpi-card{background:linear-gradient(135deg,#0f1120,#141720);border:1px solid #1e2235;border-radius:16px;padding:20px 22px;margin:6px 0;transition:all .2s;position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi-green::before{background:linear-gradient(90deg,#22c55e,#16a34a);}
+.kpi-red::before{background:linear-gradient(90deg,#ef4444,#dc2626);}
+.kpi-gold::before{background:linear-gradient(90deg,#E8B84B,#f0c96a);}
+.kpi-blue::before{background:linear-gradient(90deg,#3b82f6,#2563eb);}
+.kpi-card:hover{border-color:#2e3450;transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.4);}
+.kpi-label{font-size:10px;font-weight:700;color:#4a5070;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;}
+.kpi-val{font-size:22px;font-weight:800;font-family:'DM Mono',monospace;color:#F0F2F8;line-height:1.2;}
+.kpi-sub{font-size:11px;color:#3a4060;margin-top:6px;}
+.kpi-trend-up{color:#22c55e;font-size:11px;margin-top:4px;}
+.kpi-trend-down{color:#ef4444;font-size:11px;margin-top:4px;}
+
+/* ── BIG NUMBER ── */
+.big-eco-wrap{background:linear-gradient(135deg,#0a0c14,#0f1120);border:1px solid #1e2235;border-radius:20px;padding:32px;text-align:center;margin:16px 0;}
+.big-eco{font-size:56px;font-weight:800;font-family:'DM Mono',monospace;line-height:1;letter-spacing:-2px;}
+.eco-pos{background:linear-gradient(135deg,#22c55e,#16a34a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.eco-neg{background:linear-gradient(135deg,#ef4444,#dc2626);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.eco-label{font-size:11px;color:#4a5070;text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;}
+.eco-proj{font-size:14px;color:#5a6080;margin-top:10px;}
+.eco-proj b{color:#E8B84B;}
+
+/* ── ALERTS ── */
+.alert-gold{background:linear-gradient(135deg,#1a1400,#1e1800);border:1px solid #E8B84B40;border-left:3px solid #E8B84B;border-radius:10px;padding:12px 16px;color:#fde68a;font-size:13px;margin:6px 0;}
+.alert-green{background:linear-gradient(135deg,#001208,#001a10);border:1px solid #22c55e40;border-left:3px solid #22c55e;border-radius:10px;padding:12px 16px;color:#86efac;font-size:13px;margin:6px 0;}
+.alert-red{background:linear-gradient(135deg,#120000,#1a0000);border:1px solid #ef444440;border-left:3px solid #ef4444;border-radius:10px;padding:12px 16px;color:#fca5a5;font-size:13px;margin:6px 0;}
+
+/* ── SECTION TITLES ── */
+.section-title{font-size:15px;font-weight:800;color:#F0F2F8;padding-bottom:10px;border-bottom:1px solid #1a1e2e;margin:20px 0 12px 0;display:flex;align-items:center;gap:8px;}
+
+/* ── IMPORT BOXES ── */
+.import-box{background:linear-gradient(135deg,#0a0c14,#0f1120);border:1px solid #1a1e2e;border-radius:16px;padding:22px;margin-bottom:8px;}
 .import-box-gls{border-top:3px solid #3b82f6;}
 .import-box-dpd{border-top:3px solid #ef4444;}
-/* aggrid dark */
-.ag-theme-alpine-dark{--ag-background-color:#141720;--ag-odd-row-background-color:#0e1018;--ag-header-background-color:#0a0c12;--ag-border-color:#1e2235;}
+
+/* ── HEADER ── */
+.dash-header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid #1a1e2e;}
+.dash-title{font-size:24px;font-weight:800;color:#F0F2F8;}
+.dash-sub{font-size:11px;color:#3a4060;margin-left:auto;}
+
+/* ── AGGRID ── */
+.ag-theme-alpine-dark{--ag-background-color:#0f1120;--ag-odd-row-background-color:#0a0c14;--ag-header-background-color:#07090f;--ag-border-color:#1a1e2e;--ag-font-family:'Syne',sans-serif;--ag-font-size:13px;--ag-row-hover-color:#141720;--ag-header-foreground-color:#5a6080;}
+
+/* ── SCORE ── */
+.score-card{background:linear-gradient(135deg,#0a0c14,#0f1120);border:1px solid #1a1e2e;border-radius:20px;padding:36px;text-align:center;}
+.score-num{font-size:72px;font-weight:800;font-family:'DM Mono',monospace;line-height:1;}
+
+/* ── STREAMLIT OVERRIDES ── */
+[data-testid="stFileUploader"]{background:#0a0c14;border:1px dashed #1e2235;border-radius:10px;}
+[data-testid="stFileUploader"]:hover{border-color:#E8B84B40;}
+.stSelectbox > div > div{background:#0a0c14 !important;border-color:#1e2235 !important;}
+.stNumberInput > div > div{background:#0a0c14 !important;}
+input{background:#0a0c14 !important;color:#F0F2F8 !important;}
+.stSlider > div{color:#F0F2F8;}
+[data-testid="stMetricValue"]{font-family:'DM Mono',monospace !important;font-weight:800 !important;}
 </style>
 """, unsafe_allow_html=True)
+
+
+def kpi(label, val, sub='', style='gold'):
+    """KPI card avec design pro."""
+    return f'''<div class="kpi-card kpi-{style}">
+        <div class="kpi-label">{label}</div>
+        <div class="kpi-val">{val}</div>
+        <div class="kpi-sub">{sub}</div>
+    </div>'''
 
 MOIS_NOMS = ['Janvier','Février','Mars','Avril','Mai','Juin',
              'Juillet','Août','Septembre','Octobre','Novembre','Décembre']
@@ -290,10 +356,11 @@ with tab1:
 
             signe = "+" if te_ttc>0 else ""
             st.markdown(f"""
-            <div style="text-align:center;padding:24px 0 12px;">
-                <div style="font-size:11px;color:#5a6080;text-transform:uppercase;letter-spacing:.12em;">Économie cumulée GLS → DPD ({nb_m} mois)</div>
-                <div class="big-eco {'eco-pos' if te_ttc>0 else 'eco-neg'}">{signe}{te_ttc:,.0f}€ TTC</div>
-                <div style="font-size:13px;color:#5a6080;margin-top:8px;">Projection 12 mois : <b style="color:#E8B84B;">{proj:,.0f}€ TTC/an</b></div>
+            <div class="big-eco-wrap">
+                <div class="eco-label">Économie cumulée GLS → DPD ({nb_m} mois • {tc:,} colis)</div>
+                <div class="big-eco {'eco-pos' if te_ttc>0 else 'eco-neg'}">{signe}{te_ttc:,.0f}€</div>
+                <div style="font-size:13px;color:#5a6080;margin-top:4px;">TTC</div>
+                <div class="eco-proj">Projection 12 mois : <b>{proj:,.0f}€ TTC/an</b> &nbsp;·&nbsp; soit <b>{proj/12:,.0f}€/mois</b></div>
             </div>""".replace(',', ' '), unsafe_allow_html=True)
 
             for m in st.session_state.gls_data:
@@ -311,7 +378,7 @@ with tab1:
                 with c2: ui.metric_card(title="Facture DPD TTC", content=f"{m['total_facture_ttc']:,.0f}€".replace(',', ' '), description="réel")
                 with c3: ui.metric_card(title="GLS théorique TTC", content=f"{m.get('gls_theorique_ht',0)*1.2:,.0f}€".replace(',', ' '), description="sim")
                 with c4: ui.metric_card(title="Éco vs GLS", content=f"{eco:+,.0f}€ TTC".replace(',', ' '), description="")
-                with c5: ui.metric_card(title="Taux avisés", content=f"{taux:.1f}%", description="cible <5%")
+                with c5: st.markdown(kpi("Taux avisés", f"{taux:.1f}%", "cible <5%"), unsafe_allow_html=True)
                 for a in m.get('alertes',[]):
                     if '🔴' in a: st.markdown(f'<div class="alert-red">{a}</div>', unsafe_allow_html=True)
                     else: st.markdown(f'<div class="alert-gold">{a}</div>', unsafe_allow_html=True)
@@ -421,8 +488,8 @@ with tab2:
             _,sd_mc = get_sgo_mois(now.year, now.month)
             res = calcul_surcoût_multicolis_dpd(nb_mc, sd_mc)
             c1,c2,c3 = st.columns(3)
-            with c1: ui.metric_card(title="GLS 9-10kg", content=f"{res['gls_9kg_ht']:.2f}€ HT", description="1 colis + NCY 39%")
-            with c2: ui.metric_card(title="DPD 2 colis", content=f"{res['dpd_moy_ht']:.2f}€ HT", description="50% 2×5kg / 50% 6+3kg")
+            with c1: st.markdown(kpi("GLS 9-10kg", f"{res['gls_9kg_ht']:.2f}€ HT", "1 colis + NCY 39%"), unsafe_allow_html=True)
+            with c2: st.markdown(kpi("DPD 2 colis", f"{res['dpd_moy_ht']:.2f}€ HT", "50% 2×5kg / 50% 6+3kg"), unsafe_allow_html=True)
             with c3: ui.metric_card(title="Surcoût/colis", content=f"{res['surcoût_par_colis_ht']:+.2f}€ HT", description="DPD plus cher" if res['surcoût_par_colis_ht']>0 else "DPD moins cher")
             impact = res['surcoût_total_ttc']*12
             st.markdown(f'<div class="alert-{"red" if impact>0 else "green"}">Impact annuel ({nb_mc} colis/mois) : <b>{impact:+,.0f}€ TTC/an</b> — {"⚠️ Garder GLS" if impact>0 else "✅ DPD OK"}</div>'.replace(',', ' '), unsafe_allow_html=True)
