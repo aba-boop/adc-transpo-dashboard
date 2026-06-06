@@ -97,7 +97,7 @@ def aggrid_table(df, height=300, color_col=None, red_if_positive=False):
 with st.sidebar:
     st.markdown("## 🚚 Transpo Dashboard")
     st.markdown('<span class="badge-gls">GLS</span> &nbsp;vs&nbsp; <span class="badge-dpd">DPD</span>', unsafe_allow_html=True)
-    ui.separator()
+    st.markdown("---")
 
     st.markdown("### 📊 SGO — Taux gazole")
     if st.button("🔄 Scraper auto", use_container_width=True):
@@ -115,7 +115,7 @@ with st.sidebar:
     sgo_dpd_input = st.number_input("DPD routier (%)", value=round(def_dpd,2), step=0.01, format="%.2f")
     st.markdown(f"<small>GLS net ADC (-6pts) : <b>{sgo_gls_input/100-0.06:.4f}</b></small>", unsafe_allow_html=True)
 
-    ui.separator()
+    st.markdown("---")
     st.markdown("### ⚙️ Contrat DPD")
     cfg = st.session_state.dpd_config
     cfg['has_zebra'] = st.checkbox("✅ Ma propre Zebra", value=cfg['has_zebra'])
@@ -123,14 +123,14 @@ with st.sidebar:
     cfg['predict_actif'] = st.checkbox("✅ Predict actif", value=cfg['predict_actif'])
     cfg['cout_avis'] = st.number_input("Tarif avisé (€)", value=cfg['cout_avis'], step=0.5, min_value=0.5, max_value=4.0)
 
-    ui.separator()
+    st.markdown("---")
     st.markdown("### 🔶 Profils NCY")
     for key, p in st.session_state.ncy_profils.items():
         p['actif'] = st.checkbox(p['label'], value=p['actif'], key=f"ncy_{key}")
         if p['actif']:
             p['taux'] = st.slider("Taux %", 0, 100, p['taux'], key=f"taux_{key}")
 
-    ui.separator()
+    st.markdown("---")
     st.markdown("### 🏆 Score")
     w_cout = st.slider("💰 Coût", 0, 100, 40)
     w_qual = st.slider("⏱ Qualité", 0, 100, 40)
@@ -267,8 +267,7 @@ with tab1:
     has_dpd = bool(st.session_state.dpd_data)
 
     if not has_gls and not has_dpd:
-        ui.alert_dialog(show=False, title="", description="", confirm_label="OK", cancel_label="", key="ad1")
-        st.markdown('<div style="text-align:center;padding:60px 0;color:#3a4060;"><div style="font-size:40px;">📂</div><div style="font-size:16px;font-weight:700;color:#5a6080;margin-top:12px;">Importe un ou plusieurs BCF ci-dessus</div></div>', unsafe_allow_html=True)
+            st.markdown('<div style="text-align:center;padding:60px 0;color:#3a4060;"><div style="font-size:40px;">📂</div><div style="font-size:16px;font-weight:700;color:#5a6080;margin-top:12px;">Importe un ou plusieurs BCF ci-dessus</div></div>', unsafe_allow_html=True)
     else:
         if has_gls:
             st.markdown('<div class="section-title">🔵 GLS — Données réelles</div>', unsafe_allow_html=True)
