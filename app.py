@@ -14,6 +14,7 @@ from utils.parsers import parse_bcf_gls
 from utils.controle import controler_bcf_gls
 from utils.parser_dpd import parse_bcf_dpd
 from utils.ncy_analyse import tendance_ncy, calcul_surcoût_multicolis_dpd
+from utils.email_alerts import send_monthly_report, send_anomaly_alert
 from utils.tarifs import (
     cout_gls, cout_dpd, get_sgo_mois, scraper_sgo_gls, scraper_sgo_dpd,
     SGO_HISTORIQUE, GLS_REMISE_SGO
@@ -257,6 +258,13 @@ with col_gls:
                 return 0
             st.session_state.gls_data.sort(key=sk)
             st.success(f"✅ {nb_ok} BCF GLS analysés")
+            # Envoi email automatique du rapport
+            if st.session_state.gls_data:
+                ok, msg = send_monthly_report(st.session_state.gls_data)
+                if ok:
+                    st.toast("📧 Rapport envoyé à aba@alleeducommerce.com", icon="✅")
+                else:
+                    st.toast(f"Email non envoyé : {msg}", icon="⚠️")
         else: st.warning("Sélectionne au moins un fichier")
     if st.session_state.gls_data:
         cols = st.columns(min(len(st.session_state.gls_data),4))
@@ -603,8 +611,18 @@ with tab6:
         elif diff<-5: st.markdown('<div class="alert-red">⚠️ GLS reste compétitif — réévalue dans 1 mois</div>', unsafe_allow_html=True)
         else: st.markdown('<div class="alert-gold">🔄 Scores proches — continuer la phase de test</div>', unsafe_allow_html=True)
 
-        if st.button("📥 Export Excel"):
-            out = io.BytesIO()
+        col_e1, col_e2 = st.columns(2)
+        with col_e1:
+            if st.button("📧 Envoyer rapport par email", use_container_width=True):
+                with st.spinner("Envoi en cours..."):
+                    ok, msg = send_monthly_report(st.session_state.gls_data)
+                if ok:
+                    st.success(f"✅ {msg}")
+                else:
+                    st.error(f"❌ {msg}")
+        with col_e2:
+            if st.button("📥 Export Excel", use_container_width=True):
+                out = io.BytesIO()
             with pd.ExcelWriter(out,engine='xlsxwriter') as w:
                 pd.DataFrame([{'Mois':m['label'],'Colis':m['nb_colis'],
                     'GLS HT':round(m['total_gls_ht'],2),'DPD HT':round(m['total_dpd_ht'],2),
@@ -643,7 +661,12 @@ with tab7:
                         out=io.BytesIO()
                         with pd.ExcelWriter(out,engine='xlsxwriter') as w:
                             cs['anomalies_df'].to_excel(w,sheet_name='Anomalies GLS',index=False)
-                        st.download_button("📥 Export GLS",data=out.getvalue(),
+                        # Alerte email si anomalies élevées
+                    if na >= 5:
+                        if st.button("📧 Envoyer alerte anomalies GLS", key="email_anomalies"):
+                            ok, msg = send_anomaly_alert(cs['anomalies_df'], "Contrôle GLS")
+                            st.success(msg) if ok else st.error(msg)
+                    st.download_button("📥 Export GLS",data=out.getvalue(),
                             file_name=f"GLS_anomalies_{now.strftime('%Y%m%d')}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
