@@ -7,3 +7,4 @@ beautifulsoup4
 openpyxl
 xlsxwriter
 python-dateutil
+# cache bust Dim  7 jui 2026 00:04:38 CEST
