@@ -87,10 +87,14 @@ button[kind="primary"]:hover{transform:translateY(-1px);box-shadow:0 4px 20px rg
 .kpi-label{font-size:10px;font-weight:700;color:#4a5070;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;}
 .kpi-val{font-size:22px;font-weight:800;font-family:'DM Mono',monospace;color:#F0F2F8;line-height:1.2;}
 .kpi-sub{font-size:11px;color:#3a4060;margin-top:6px;}
-.big-eco-wrap{background:linear-gradient(135deg,#08090f,#0f1120);border:1px solid #1e2235;border-radius:20px;padding:32px;text-align:center;margin:16px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.03);}
-.big-eco{font-size:54px;font-weight:800;font-family:'DM Mono',monospace;line-height:1;letter-spacing:-2px;}
+.big-eco-wrap{border-radius:20px;padding:36px;text-align:center;margin:16px 0;position:relative;overflow:hidden;}
+.big-eco-wrap.pos{background:linear-gradient(135deg,#001a08,#002810);border:2px solid #22c55e;box-shadow:0 0 40px rgba(34,197,94,.15),inset 0 1px 0 rgba(34,197,94,.1);}
+.big-eco-wrap.neg{background:linear-gradient(135deg,#1a0000,#280000);border:2px solid #ef4444;box-shadow:0 0 40px rgba(239,68,68,.15),inset 0 1px 0 rgba(239,68,68,.1);}
+.big-eco{font-size:64px;font-weight:800;font-family:'DM Mono',monospace;line-height:1;letter-spacing:-3px;text-shadow:0 0 30px currentColor;}
 .eco-pos{color:#22c55e;}
 .eco-neg{color:#ef4444;}
+.eco-label-pos{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:#22c55e;opacity:.8;margin-bottom:12px;}
+.eco-label-neg{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:#ef4444;opacity:.8;margin-bottom:12px;}
 .eco-label{font-size:10px;color:#4a5070;text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;}
 .eco-proj{font-size:13px;color:#5a6080;margin-top:10px;}
 .eco-proj b{color:#E8B84B;}
@@ -343,7 +347,7 @@ st.markdown("<div style='margin:12px 0;'></div>", unsafe_allow_html=True)
 # ─── TABS ─────────────────────────────────────────────────────────────────────
 tab1,tab2,tab3,tab4,tab5,tab6,tab7 = st.tabs([
     "📊 Synthèse","💰 Coûts","🌍 Géographie",
-    "🔢 Simulateur","📈 Historique","🏆 Score","🔍 Contrôle"
+    "🔢 Simulateur","📈 Historique","🎯 Recommandations","🔍 Contrôle"
 ])
 
 # ════════════ TAB 1 — SYNTHÈSE ════════════
@@ -374,11 +378,17 @@ with tab1:
             with c5: st.markdown(kpi("NCY TTC", f"{tn_ttc:,.0f}€ TTC".replace(',', ' '), "GLS only", 'red'), unsafe_allow_html=True)
 
             signe = "+" if te_ttc>0 else ""
+            wrap_class = "pos" if te_ttc>0 else "neg"
+            label_class = "eco-label-pos" if te_ttc>0 else "eco-label-neg"
+            ico = "✅" if te_ttc>0 else "⚠️"
+            msg_eco = "Vous économisez avec DPD" if te_ttc>0 else "DPD moins avantageux ce mois"
             st.markdown(f"""
-            <div class="big-eco-wrap">
-                <div class="eco-label">Économie cumulée GLS → DPD ({nb_m} mois · {tc:,} colis)</div>
+            <div class="big-eco-wrap {wrap_class}">
+                <div class="{label_class}">{ico} {msg_eco} — {nb_m} mois · {tc:,} colis</div>
                 <div class="big-eco {'eco-pos' if te_ttc>0 else 'eco-neg'}">{signe}{te_ttc:,.0f}€ TTC</div>
-                <div class="eco-proj">Projection 12 mois : <b>{proj:,.0f}€ TTC/an</b> &nbsp;·&nbsp; soit <b>{proj/12:,.0f}€/mois</b></div>
+                <div style="font-size:14px;color:{'#22c55e' if te_ttc>0 else '#ef4444'};margin-top:10px;opacity:.8;">
+                    Projection 12 mois : <b>{proj:,.0f}€ TTC/an</b> &nbsp;·&nbsp; soit <b>{proj/12:,.0f}€/mois</b>
+                </div>
             </div>""".replace(',', ' '), unsafe_allow_html=True)
 
             # Alerte surcoût avisés DPD
@@ -461,7 +471,7 @@ with tab2:
             with c4: st.markdown(kpi("Sûreté+Log.", f"{(m['total_surete_ht']+m['total_log_ht']):.2f}€", "fixe/colis"), unsafe_allow_html=True)
             with c5:
                 taux = m.get('taux_avis_pct',0)
-                st.markdown(kpi("Taux avisés", f"{taux:.1f}%", "cible <5%", 'green' if taux<5 else 'red'), unsafe_allow_html=True)
+                st.markdown(kpi("Taux avisés", f"{taux:.1f}%", "cible <5%", 'green' if taux<5 else ('gold' if taux<9 else 'red')), unsafe_allow_html=True)
             rows_dpd = []
             if m.get('nb_ile_montagne',0)>0: rows_dpd.append({'Surcharge':'🏝️ Île/montagne','Nb':m['nb_ile_montagne'],'HT':f"{m['total_ile_montagne_ht']:.2f}€",'Moy':f"{m['total_ile_montagne_ht']/m['nb_ile_montagne']:.2f}€"})
             if m.get('nb_avis',0)>0: rows_dpd.append({'Surcharge':'⚠️ Avisés','Nb':m['nb_avis'],'HT':f"{m['cout_avis_ht']:.2f}€",'Moy':f"{m['cout_avis_ht']/m['nb_avis']:.2f}€"})
@@ -653,76 +663,145 @@ with tab5:
                 'Cumulé TTC':f"{cum:+,.0f}€".replace(',', ' '),'NCY TTC':f"{m['total_ncy_ht']*1.2:,.0f}€".replace(',', ' ')})
         aggrid_table(pd.DataFrame(rows2), height=300)
 
-# ════════════ TAB 6 — SCORE ════════════
+# ════════════ TAB 6 — RECOMMANDATIONS ════════════
 with tab6:
-    st.markdown('<div class="section-title">🏆 Score final</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🎯 Recommandations & Alertes prioritaires</div>', unsafe_allow_html=True)
     has_gls6 = bool(st.session_state.gls_data)
     has_dpd6 = bool(st.session_state.dpd_data)
+
     if not has_gls6 and not has_dpd6:
-        st.info("Importe des BCF GLS et/ou DPD pour générer le score.")
-    # ── Score DPD réel si BCF DPD chargé ──
-    if has_dpd6 and not has_gls6:
-        st.markdown('<div class="section-title">🔴 DPD — Analyse des BCF réels</div>', unsafe_allow_html=True)
-        tot_dpd_fact = sum(m['total_facture_ttc'] for m in st.session_state.dpd_data)
-        tot_dpd_colis = sum(m['nb_colis'] for m in st.session_state.dpd_data)
-        tot_avis = sum(m.get('nb_avis',0) for m in st.session_state.dpd_data)
-        taux_avis_moy = tot_avis/tot_dpd_colis*100 if tot_dpd_colis else 0
-        c1,c2,c3,c4 = st.columns(4)
-        with c1: st.markdown(kpi("Colis DPD", f"{tot_dpd_colis:,}".replace(',', ' '), f"{len(st.session_state.dpd_data)} mois"), unsafe_allow_html=True)
-        with c2: st.markdown(kpi("Facture TTC", f"{tot_dpd_fact:,.0f}€".replace(',', ' '), "réel"), unsafe_allow_html=True)
-        with c3: st.markdown(kpi("Coût moy/colis", f"{tot_dpd_fact/tot_dpd_colis if tot_dpd_colis else 0:.2f}€" if tot_dpd_colis else "—", "TTC"), unsafe_allow_html=True)
-        with c4: st.markdown(kpi("Taux avisés", f"{taux_avis_moy:.1f}%", "cible <5%", 'green' if taux_avis_moy<5 else 'red'), unsafe_allow_html=True)
-        for m in st.session_state.dpd_data:
-            for a in m.get('alertes',[]):
-                if '🔴' in a: st.markdown(f'<div class="alert-red">{a}</div>', unsafe_allow_html=True)
-                else: st.markdown(f'<div class="alert-gold">{a}</div>', unsafe_allow_html=True)
-    if has_gls6:
-        tg = sum(m['total_gls_ht'] for m in st.session_state.gls_data)
-        td = sum(m['total_dpd_ht'] for m in st.session_state.gls_data)
-        ep = (tg-td)/tg*100 if tg else 0
-        np_ = sum(m['total_ncy_ht'] for m in st.session_state.gls_data)/tg*100 if tg else 0
-        scg=max(0,100-ep*2); scd=min(100,100+(ep-10)*2) if ep>0 else 50
-        sfg=max(0,100-np_*5); sfd=95
-        sqd=st.slider("Score qualité DPD (terrain)",0,100,75)
-        sqg=80
-        tw=w_cout+w_qual+w_fact
-        if tw>0:
-            sg_s=(scg*w_cout+sqg*w_qual+sfg*w_fact)/tw
-            sd_s=(scd*w_cout+sqd*w_qual+sfd*w_fact)/tw
-        else: sg_s=sd_s=50
+        st.markdown('<div style="text-align:center;padding:40px;color:#3a4060;"><div style="font-size:36px;">🎯</div><div style="font-size:14px;margin-top:12px;">Importe des BCF pour voir les recommandations</div></div>', unsafe_allow_html=True)
+    else:
+        # ── ALERTES PRIORITAIRES ─────────────────────────────────────────────
+        alertes_rouges = []
+        alertes_orange = []
+        alertes_vertes = []
 
-        c1,c2 = st.columns(2)
-        def sc(s): return '#22c55e' if s>=70 else('#E8B84B' if s>=50 else'#ef4444')
-        with c1: st.markdown(f'<div style="background:#141720;border-radius:16px;padding:32px;text-align:center;border:1px solid #1e2235;"><span class="badge-gls">GLS</span><div style="font-size:64px;font-weight:800;font-family:DM Mono,monospace;color:{sc(sg_s)};margin:12px 0;">{sg_s:.0f}</div><div style="color:#5a6080;">/ 100</div></div>', unsafe_allow_html=True)
-        with c2: st.markdown(f'<div style="background:#141720;border-radius:16px;padding:32px;text-align:center;border:1px solid #1e2235;"><span class="badge-dpd">DPD</span><div style="font-size:64px;font-weight:800;font-family:DM Mono,monospace;color:{sc(sd_s)};margin:12px 0;">{sd_s:.0f}</div><div style="color:#5a6080;">/ 100</div></div>', unsafe_allow_html=True)
+        if has_gls6:
+            tot_eco = sum(m['economie_ttc'] for m in st.session_state.gls_data)
+            tot_ncy = sum(m['total_ncy_ht']*1.2 for m in st.session_state.gls_data)
+            nb_m6   = len(st.session_state.gls_data)
+            proj_an = tot_eco/nb_m6*12 if nb_m6 else 0
+            ncy_an  = tot_ncy/nb_m6*12 if nb_m6 else 0
 
-        diff=sd_s-sg_s
-        ea=sum(m['economie_ttc'] for m in st.session_state.gls_data)/len(st.session_state.gls_data)*12
-        if diff>5: st.markdown(f'<div class="alert-green">✅ <b>DPD recommandé</b> (+{diff:.0f}pts) — Économie projetée : <b>{ea:,.0f}€ TTC/an</b></div>'.replace(',', ' '), unsafe_allow_html=True)
-        elif diff<-5: st.markdown('<div class="alert-red">⚠️ GLS reste compétitif — réévalue dans 1 mois</div>', unsafe_allow_html=True)
-        else: st.markdown('<div class="alert-gold">🔄 Scores proches — continuer la phase de test</div>', unsafe_allow_html=True)
+            if tot_eco > 0:
+                alertes_vertes.append(f"✅ Économie DPD confirmée : <b>+{tot_eco:,.0f}€ TTC</b> sur {nb_m6} mois → projection <b>+{proj_an:,.0f}€ TTC/an</b>".replace(',', ' '))
+            else:
+                alertes_rouges.append(f"🔴 DPD moins avantageux sur la période : <b>{tot_eco:,.0f}€ TTC</b> — réévaluer la stratégie transport".replace(',', ' '))
 
-        col_e1, col_e2 = st.columns(2)
-        with col_e1:
+            if ncy_an > 15000:
+                alertes_rouges.append(f"🔴 NCY GLS critique : <b>{ncy_an:,.0f}€ TTC/an</b> — exiger clause d'exclusion contractuelle immédiatement".replace(',', ' '))
+            elif ncy_an > 8000:
+                alertes_orange.append(f"⚠️ NCY GLS élevée : <b>{ncy_an:,.0f}€ TTC/an</b> — mettre la pression à GLS lors de la prochaine négo".replace(',', ' '))
+            else:
+                alertes_vertes.append(f"✅ NCY GLS maîtrisée : <b>{ncy_an:,.0f}€ TTC/an</b>".replace(',', ' '))
+
+            # Tendance NCY
+            if len(st.session_state.gls_data) >= 2:
+                from utils.ncy_analyse import tendance_ncy
+                tendance = tendance_ncy(st.session_state.gls_data)
+                if len(tendance) >= 2:
+                    diff_ncy = tendance[-1]['taux_ncy'] - tendance[-2]['taux_ncy']
+                    if diff_ncy > 3:
+                        alertes_rouges.append(f"🔴 Taux NCY en forte hausse : <b>+{diff_ncy:.1f}pts</b> ce mois ({tendance[-1]['taux_ncy']:.1f}%) — vérifier le mix produits expédiés")
+                    elif diff_ncy > 1:
+                        alertes_orange.append(f"⚠️ Taux NCY en légère hausse : +{diff_ncy:.1f}pts ce mois")
+                    elif diff_ncy < -3:
+                        alertes_vertes.append(f"✅ Taux NCY en baisse : {diff_ncy:.1f}pts ce mois — bonne évolution")
+
+        if has_dpd6:
+            for m in st.session_state.dpd_data:
+                tav = m.get('taux_avis_pct', 0)
+                lbl = m['label']
+                if tav >= 9:
+                    alertes_rouges.append(f"🔴 {lbl} — Taux avisés DPD critique : <b>{tav:.1f}%</b> — vérifier que le Predict (tél+email) est bien transmis. Objectif : &lt;5%")
+                elif tav >= 5:
+                    alertes_orange.append(f"⚠️ {lbl} — Taux avisés DPD élevé : <b>{tav:.1f}%</b> — surveiller, risque de surcoût avisés")
+                else:
+                    alertes_vertes.append(f"✅ {lbl} — Taux avisés DPD : <b>{tav:.1f}%</b> — excellent, objectif &lt;5% atteint")
+                for a in m.get('alertes', []):
+                    if '🔴' in a: alertes_rouges.append(a)
+                    elif '⚠️' in a or '🟡' in a: alertes_orange.append(a)
+
+        # Afficher les alertes par priorité
+        if alertes_rouges:
+            st.markdown("**🔴 Actions urgentes**")
+            for a in alertes_rouges:
+                st.markdown(f'<div class="alert-red" style="font-size:14px;padding:14px 18px;margin:6px 0;">{a}</div>', unsafe_allow_html=True)
+
+        if alertes_orange:
+            st.markdown("**⚠️ Points de vigilance**")
+            for a in alertes_orange:
+                st.markdown(f'<div class="alert-gold" style="font-size:14px;padding:14px 18px;margin:6px 0;">{a}</div>', unsafe_allow_html=True)
+
+        if alertes_vertes:
+            st.markdown("**✅ Points positifs**")
+            for a in alertes_vertes:
+                st.markdown(f'<div class="alert-green" style="font-size:14px;padding:14px 18px;margin:6px 0;">{a}</div>', unsafe_allow_html=True)
+
+        # ── ACTIONS À FAIRE ─────────────────────────────────────────────────
+        st.markdown('<div class="section-title" style="margin-top:24px;">📋 Actions recommandées</div>', unsafe_allow_html=True)
+        actions = []
+
+        if has_gls6:
+            tot_eco6 = sum(m['economie_ttc'] for m in st.session_state.gls_data)
+            tot_ncy6 = sum(m['total_ncy_ht']*1.2 for m in st.session_state.gls_data)
+            nb_m6b   = len(st.session_state.gls_data)
+            ncy_an6  = tot_ncy6/nb_m6b*12 if nb_m6b else 0
+
+            if ncy_an6 > 5000:
+                actions.append(("🔴 Haute priorité", f"Appeler GLS — argument : {ncy_an6:,.0f}€ TTC/an de NCY sur vos formats. Exiger clause d'exclusion ou avoir.".replace(',', ' ')))
+            actions.append(("🔵 Mensuel", "Importer le nouveau BCF GLS dès réception pour suivre l'évolution de la NCY"))
+            actions.append(("🔵 Mensuel", "Comparer avec le BCF DPD du même mois pour valider l'économie réelle"))
+
+        if has_dpd6:
+            for m in st.session_state.dpd_data:
+                tav6 = m.get('taux_avis_pct', 0)
+                if tav6 >= 5:
+                    actions.append(("⚠️ Urgent", f"Vérifier avec DPD que le Predict est bien activé — taux avisés {m['label']} : {tav6:.1f}%"))
+                if m.get('nb_edi', 0) > 0:
+                    actions.append(("🟡 Technique", f"Corriger l'intégration EDI DPD — {m['nb_edi']} colis pénalisés à 0.50€/colis"))
+
+        actions.append(("📅 Trimestriel", "Renégocier les contrats GLS et DPD avec les données du dashboard comme argument"))
+        actions.append(("📅 Annuel", "Vérifier l'évolution des seuils NCY GLS — mécanisation des entrepôts → taux va augmenter"))
+
+        for prio, desc in actions:
+            color = '#ef4444' if 'Haute' in prio or 'Urgent' in prio else ('#E8B84B' if 'Urgent' in prio or 'Technique' in prio else '#5a6080')
+            st.markdown(f'<div style="background:#0f1120;border:1px solid #1e2235;border-left:3px solid {color};border-radius:10px;padding:14px 18px;margin:6px 0;"><span style="font-size:11px;font-weight:700;color:{color};text-transform:uppercase;letter-spacing:.1em;">{prio}</span><div style="font-size:13px;color:#d0d8f0;margin-top:6px;">{desc}</div></div>', unsafe_allow_html=True)
+
+        # ── RÉSUMÉ CHIFFRÉ ──────────────────────────────────────────────────
+        if has_gls6:
+            st.markdown('<div class="section-title" style="margin-top:24px;">💶 Résumé financier</div>', unsafe_allow_html=True)
+            tot_e = sum(m['economie_ttc'] for m in st.session_state.gls_data)
+            tot_g = sum(m['total_gls_ttc'] for m in st.session_state.gls_data)
+            tot_n = sum(m['total_ncy_ht']*1.2 for m in st.session_state.gls_data)
+            nb_c6 = sum(m['nb_colis'] for m in st.session_state.gls_data)
+            nb_m6c = len(st.session_state.gls_data)
+            proj6 = tot_e/nb_m6c*12 if nb_m6c else 0
+            c1,c2,c3,c4 = st.columns(4)
+            with c1: st.markdown(kpi("Économie cumulée TTC", f"{tot_e:+,.0f}€".replace(',', ' '), f"{nb_m6c} mois", 'green' if tot_e>0 else 'red'), unsafe_allow_html=True)
+            with c2: st.markdown(kpi("Projection annuelle", f"{proj6:,.0f}€ TTC".replace(',', ' '), "sur 12 mois", 'green' if proj6>0 else 'red'), unsafe_allow_html=True)
+            with c3: st.markdown(kpi("NCY cumulée TTC", f"{tot_n:,.0f}€".replace(',', ' '), "coût GLS uniquement", 'red'), unsafe_allow_html=True)
+            with c4: st.markdown(kpi("Éco/colis TTC", f"{tot_e/nb_c6:.2f}€" if nb_c6 else "—", f"{nb_c6:,} colis".replace(',', ' '), 'green' if tot_e>0 else 'red'), unsafe_allow_html=True)
+
+            # Export rapport
             if st.button("📧 Envoyer rapport par email", use_container_width=True):
                 with st.spinner("Envoi en cours..."):
                     ok, msg = send_monthly_report(st.session_state.gls_data)
-                if ok:
-                    st.success(f"✅ {msg}")
-                else:
-                    st.error(f"❌ {msg}")
-        with col_e2:
-            if st.button("📥 Export Excel", use_container_width=True):
-                out = io.BytesIO()
-            with pd.ExcelWriter(out,engine='xlsxwriter') as w:
-                pd.DataFrame([{'Mois':m['label'],'Colis':m['nb_colis'],
-                    'GLS HT':round(m['total_gls_ht'],2),'DPD HT':round(m['total_dpd_ht'],2),
-                    'Éco HT':round(m['economie_ht'],2),'Éco TTC':round(m['economie_ttc'],2),
-                    'NCY HT':round(m['total_ncy_ht'],2)} for m in st.session_state.gls_data]
-                ).to_excel(w,sheet_name='Synthèse',index=False)
-            st.download_button("⬇️ Télécharger",data=out.getvalue(),
-                file_name=f"ADC_transpo_{now.strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                if ok: st.success(f"✅ {msg}")
+                else:  st.error(f"❌ {msg}")
+
+            if st.button("📥 Export Excel complet", use_container_width=True):
+                out6 = io.BytesIO()
+                with pd.ExcelWriter(out6, engine='xlsxwriter') as w:
+                    pd.DataFrame([{'Mois':m['label'],'Colis':m['nb_colis'],
+                        'GLS HT':round(m['total_gls_ht'],2),'DPD HT':round(m['total_dpd_ht'],2),
+                        'Éco HT':round(m['economie_ht'],2),'Éco TTC':round(m['economie_ttc'],2),
+                        'NCY HT':round(m['total_ncy_ht'],2)} for m in st.session_state.gls_data]
+                    ).to_excel(w, sheet_name='Synthèse', index=False)
+                st.download_button("⬇️ Télécharger Excel",data=out6.getvalue(),
+                    file_name=f"ADC_transpo_{now.strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ════════════ TAB 7 — CONTRÔLE ════════════
 with tab7:
@@ -795,19 +874,60 @@ with tab7:
                 st.dataframe(adf, use_container_width=True, hide_index=True)
                 out_dpd = io.BytesIO()
                 with pd.ExcelWriter(out_dpd, engine='xlsxwriter') as w:
-                    adf.to_excel(w, sheet_name='Anomalies DPD', index=False)
-                    pd.DataFrame([
-                        {'Métrique':'Nb anomalies','Valeur':na},
-                        {'Métrique':'Taux avisés','Valeur':f"{tav:.1f}%"},
-                        {'Métrique':'Colis analysés','Valeur':ds.get('nb_colis',0)},
-                        {'Métrique':'Facture HT','Valeur':f"{ds.get('total_facture_ht',0):.2f}€"},
-                    ]).to_excel(w, sheet_name='Résumé', index=False)
+                    # Feuille 1 : Anomalies détaillées avec numéros de colis
+                    adf_export = adf.copy()
+                    # Renommer les colonnes pour clarté
+                    col_renames = {
+                        'Type': 'Type anomalie',
+                        'Nb colis': 'Nb colis concernés',
+                        'Surpoids total': 'Détail',
+                        'Surcoût estimé HT': 'Surcoût estimé HT',
+                        'Action': 'Action recommandée',
+                        'Gravité': 'Priorité',
+                    }
+                    adf_export = adf_export.rename(columns={k:v for k,v in col_renames.items() if k in adf_export.columns})
+                    adf_export.to_excel(w, sheet_name='Anomalies détaillées', index=False)
+
+                    # Feuille 2 : Résumé pour la réclamation
+                    resume_data = {
+                        'Information': [
+                            'Date du contrôle',
+                            'BCF analysé',
+                            'Nombre de colis',
+                            'Facture HT totale',
+                            "Nombre d'anomalies",
+                            'Taux avisés',
+                            'Action recommandée',
+                        ],
+                        'Valeur': [
+                            now.strftime('%d/%m/%Y'),
+                            ds.get('label', ''),
+                            ds.get('nb_colis', 0),
+                            f"{ds.get('total_facture_ht', 0):.2f}€",
+                            na,
+                            f"{tav:.1f}%",
+                            'Envoyer ce fichier à votre commercial DPD pour réclamation',
+                        ]
+                    }
+                    pd.DataFrame(resume_data).to_excel(w, sheet_name='Résumé réclamation', index=False)
+
+                    # Feuille 3 : Données brutes du BCF
+                    if ds.get('df') is not None and len(ds['df']) > 0:
+                        ds['df'].to_excel(w, sheet_name='BCF complet', index=False)
+
+                    # Mise en forme
+                    wb_xl = w.book
+                    fmt_header = wb_xl.add_format({'bold':True,'bg_color':'#1a1a2e','font_color':'white','border':1})
+                    fmt_red    = wb_xl.add_format({'font_color':'#ef4444','bold':True})
+                    fmt_green  = wb_xl.add_format({'font_color':'#22c55e'})
+
                 st.download_button(
-                    "📥 Exporter anomalies DPD (pour réclamation)",
+                    "📥 Exporter le dossier de réclamation DPD (Excel)",
                     data=out_dpd.getvalue(),
-                    file_name=f"DPD_anomalies_{now.strftime('%Y%m%d')}.xlsx",
+                    file_name=f"DPD_reclamation_{now.strftime('%Y%m%d')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True, key="dl_dpd_anomalies",
                 )
+                st.markdown('<div class="alert-gold">💡 Ce fichier contient 3 onglets : anomalies détaillées, résumé de réclamation, et le BCF complet. Envoyez-le directement à votre commercial DPD.</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div style="background:#141720;border-radius:8px;padding:14px;font-size:13px;color:#5a6080;line-height:2;">Upload un BCF DPD et clique Valider pour vérifier la conformité au contrat.<br>🟡 EDI manquante · ⚠️ Avisés &gt;5% · 🔴 Tarif avisé &gt; négocié · ⚠️ Zebra 60€</div>', unsafe_allow_html=True)
