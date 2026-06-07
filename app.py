@@ -134,6 +134,10 @@ def get_sgo_from_mois_annee(mois_idx, annee):
         return SGO_HISTORIQUE[key]
     return list(SGO_HISTORIQUE.values())[-1]
 
+def kpi(label, val, sub='', style='gold'):
+    """KPI card HTML avec ligne colorée en haut."""
+    return f'<div class="kpi kpi-{style}"><div class="kpi-label">{label}</div><div class="kpi-val">{val}</div><div class="kpi-sub">{sub}</div></div>'
+
 def fmt_eur(v, ttc=False):
     if v is None: return "—"
     return f"{v:,.0f}€ {'TTC' if ttc else 'HT'}".replace(',', ' ')
