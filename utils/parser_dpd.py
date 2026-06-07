@@ -24,11 +24,8 @@ ALERTES_CONTRACTUELLES = {
         'message': '⚠️ 60€/mois facturé pour solution étiquetage — injustifié si vous avez votre propre Zebra',
         'colonne': None,  # détecté sur le montant fixe dans frais
     },
-    'poids_volumetrique': {
-        'label': 'Refacturation au poids volumétrique',
-        'message': '🔴 Colis refacturé au poids volumétrique — cette clause est BARRÉE dans votre contrat ADC',
-        'colonne': 'Colis refacturé',
-    },
+    # 'poids_volumetrique' supprimé : Colis refacturé = 1 signifie repesée DPD
+    # (poids réel mesuré ≠ poids déclaré) — PAS du poids volumétrique
     'consignation_edi': {
         'label': 'Consignation EDI manquante',
         'message': '🟡 EDI manquant — problème d\'intégration technique à corriger (0,50€/colis)',
@@ -149,30 +146,11 @@ def parse_bcf_dpd(file_obj, config=None, annee=None, mois=None,
     # ─── ANOMALIES ET ALERTES CONTRACTUELLES ─────────────────────────────────
     anomalies = []
 
-    # 1. Poids volumétrique (clause barrée dans contrat ADC)
-    if config.get('volumetrique_barre') and stats['nb_volumetrique'] > 0:
-        df_volu = df[df['Colis refacturé'] == 1].copy()
-        df_volu['poids_reel'] = df_volu['Poids initial']
-        df_volu['poids_facture'] = df_volu['Poids']
-        df_volu['surpoids'] = df_volu['poids_facture'] - df_volu['poids_reel']
-        surpoids_total = df_volu['surpoids'].sum()
-
-        # Estimer le surcoût
-        surtaxe = 0
-        for _, row in df_volu.iterrows():
-            bar_reel = get_dpd_bareme(row['Poids initial'], 'FR')
-            bar_fact = row['Prix transport']
-            surtaxe += max(0, bar_fact - bar_reel)
-
-        anomalies.append({
-            'Type': '🔴 Poids volumétrique (clause barrée)',
-            'Nb colis': stats['nb_volumetrique'],
-            'Surpoids total': f"+{surpoids_total:.1f} kg",
-            'Surcoût estimé HT': f"+{surtaxe:.2f}€",
-            'Action': 'RÉCLAMER À DPD — clause barrée dans votre contrat',
-            'Gravité': '🔴 Élevée',
-        })
-        stats['alertes'].append(f"🔴 {stats['nb_volumetrique']} colis facturés au poids volumétrique — clause BARRÉE dans votre contrat ADC ! Surcoût estimé : {surtaxe:.2f}€ HT")
+    # Note : Colis refacturé = 1 signifie que DPD a repesé le colis à réception
+    # (poids réel mesuré légèrement différent du poids déclaré)
+    # Ce n'est PAS du poids volumétrique — pas d'alerte à générer sur ce point
+    if stats['nb_volumetrique'] > 0:
+        pass  # Repesée normale — aucune anomalie
 
     # 2. EDI manquant
     if stats['nb_edi'] > 0:
