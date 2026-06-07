@@ -420,10 +420,13 @@ with tab1:
 
 # ════════════ TAB 2 — COÛTS ════════════
 with tab2:
-    st.markdown('<div class="section-title">💰 Décomposition par format</div>', unsafe_allow_html=True)
-    if not st.session_state.gls_data:
-        st.info("Importe des BCF GLS.")
-    else:
+    has_gls2 = bool(st.session_state.gls_data)
+    has_dpd2 = bool(st.session_state.dpd_data)
+    if not has_gls2 and not has_dpd2:
+        st.info("Importe des BCF GLS et/ou DPD pour voir l'analyse des coûts.")
+    # ── GLS section ──
+    if has_gls2:
+        st.markdown('<div class="section-title">🔵 GLS — Décomposition par format (simulation DPD incluse)</div>', unsafe_allow_html=True)
         par_format = {}
         for m in st.session_state.gls_data:
             for fmt,d in m['par_format'].items():
@@ -436,11 +439,37 @@ with tab2:
             eco = d['gls']-d['dpd']
             rows.append({'Format':fmt,'Nb':d['nb'],
                 'GLS HT moy':f"{d['gls']/d['nb']:.2f}€" if d['nb'] else '—',
-                'DPD HT moy':f"{d['dpd']/d['nb']:.2f}€" if d['nb'] else '—',
+                'DPD sim. HT moy':f"{d['dpd']/d['nb']:.2f}€" if d['nb'] else '—',
                 'Éco/colis':f"{eco/d['nb']:+.2f}€" if d['nb'] else '—',
                 'NCY HT':f"{d['ncy']:,.0f}€".replace(',', ' '),
                 'Gagnant':'🔵 GLS' if eco<0 else('🔴 DPD' if eco>100 else'≈')})
         aggrid_table(pd.DataFrame(rows), height=250)
+    # ── DPD section ──
+    if has_dpd2:
+        st.markdown('<div class="section-title">🔴 DPD — Analyse des BCF réels</div>', unsafe_allow_html=True)
+        for m in st.session_state.dpd_data:
+            st.markdown(f"**{m['label']}** — {m['nb_colis']} colis")
+            c1,c2,c3,c4,c5 = st.columns(5)
+            with c1: st.markdown(kpi("Facture HT", f"{m['total_facture_ht']:,.0f}€".replace(',', ' '), "réel"), unsafe_allow_html=True)
+            with c2: st.markdown(kpi("Transport HT", f"{m['total_transport_ht']:,.0f}€".replace(',', ' '), "barème pur"), unsafe_allow_html=True)
+            with c3: st.markdown(kpi("SGO HT", f"{m['total_sgo_ht']:,.0f}€".replace(',', ' '), f"taux {m['sgo_dpd']*100:.2f}%"), unsafe_allow_html=True)
+            with c4: st.markdown(kpi("Sûreté+Log.", f"{(m['total_surete_ht']+m['total_log_ht']):.2f}€", "fixe/colis"), unsafe_allow_html=True)
+            with c5:
+                taux = m.get('taux_avis_pct',0)
+                st.markdown(kpi("Taux avisés", f"{taux:.1f}%", "cible <5%", 'green' if taux<5 else 'red'), unsafe_allow_html=True)
+            rows_dpd = []
+            if m.get('nb_ile_montagne',0)>0: rows_dpd.append({'Surcharge':'🏝️ Île/montagne','Nb':m['nb_ile_montagne'],'HT':f"{m['total_ile_montagne_ht']:.2f}€",'Moy':f"{m['total_ile_montagne_ht']/m['nb_ile_montagne']:.2f}€"})
+            if m.get('nb_avis',0)>0: rows_dpd.append({'Surcharge':'⚠️ Avisés','Nb':m['nb_avis'],'HT':f"{m['cout_avis_ht']:.2f}€",'Moy':f"{m['cout_avis_ht']/m['nb_avis']:.2f}€"})
+            if m.get('nb_edi',0)>0: rows_dpd.append({'Surcharge':'🟡 EDI manquante','Nb':m['nb_edi'],'HT':f"{m['cout_edi_ht']:.2f}€",'Moy':f"{m['cout_edi_ht']/m['nb_edi']:.2f}€"})
+            if m.get('nb_retours',0)>0: rows_dpd.append({'Surcharge':'↩️ Retours','Nb':m['nb_retours'],'HT':f"{m['cout_retours_ht']:.2f}€",'Moy':f"{m['cout_retours_ht']/m['nb_retours']:.2f}€"})
+            if rows_dpd:
+                st.dataframe(pd.DataFrame(rows_dpd), use_container_width=True, hide_index=True)
+            else:
+                st.markdown('<div class="alert-green">✅ Aucune surcharge anormale détectée</div>', unsafe_allow_html=True)
+            for a in m.get('alertes',[]):
+                if '🔴' in a: st.markdown(f'<div class="alert-red">{a}</div>', unsafe_allow_html=True)
+                else: st.markdown(f'<div class="alert-gold">{a}</div>', unsafe_allow_html=True)
+            st.markdown("---")
 
         # NCY
         st.markdown('<div class="section-title">⚠️ Surcharges NCY — Tendance</div>', unsafe_allow_html=True)
@@ -515,10 +544,12 @@ with tab2:
 
 # ════════════ TAB 3 — GÉOGRAPHIE ════════════
 with tab3:
-    st.markdown('<div class="section-title">🌍 Analyse par pays</div>', unsafe_allow_html=True)
-    if not st.session_state.gls_data:
-        st.info("Importe des BCF GLS.")
-    else:
+    has_gls3 = bool(st.session_state.gls_data)
+    has_dpd3 = bool(st.session_state.dpd_data)
+    if not has_gls3 and not has_dpd3:
+        st.info("Importe des BCF pour voir l'analyse géographique.")
+    if has_gls3:
+        st.markdown('<div class="section-title">🔵 GLS — Analyse par pays (simulation DPD)</div>', unsafe_allow_html=True)
         par_pays = {}
         for m in st.session_state.gls_data:
             for pays,d in m['par_pays'].items():
@@ -529,13 +560,27 @@ with tab3:
             eco = d['gls']-d['dpd']
             rows.append({'Pays':pays,'Nb':d['nb'],
                 'GLS HT':f"{d['gls']:,.0f}€".replace(',', ' '),
-                'DPD HT':f"{d['dpd']:,.0f}€".replace(',', ' '),
+                'DPD sim. HT':f"{d['dpd']:,.0f}€".replace(',', ' '),
                 'Éco HT':f"{eco:+,.0f}€".replace(',', ' '),
                 'Éco%':f"{eco/d['gls']*100:+.1f}%" if d['gls'] else '—',
                 'NCY HT':f"{d['ncy']:,.0f}€".replace(',', ' '),
                 'Reco':"⚠️ Garder GLS" if pays=='IT' else ("✅ DPD" if eco>50 else "≈")})
-        aggrid_table(pd.DataFrame(rows), height=350)
+        aggrid_table(pd.DataFrame(rows), height=300)
         st.markdown('<div class="alert-red">⚠️ Italie : conserver GLS — DPD Zone 3 nettement plus cher</div>', unsafe_allow_html=True)
+    if has_dpd3:
+        st.markdown('<div class="section-title">🔴 DPD — Analyse par pays (données réelles)</div>', unsafe_allow_html=True)
+        for m in st.session_state.dpd_data:
+            st.markdown(f"**{m['label']}** — {m['nb_colis']} colis")
+            r_dpd = [
+                {'Surcharge':'🏝️ Île/montagne','Nb':m.get('nb_ile_montagne',0),'HT':f"{m.get('total_ile_montagne_ht',0):.2f}€"} if m.get('nb_ile_montagne',0)>0 else None,
+                {'Surcharge':'⚠️ Avisés','Nb':m.get('nb_avis',0),'HT':f"{m.get('cout_avis_ht',0):.2f}€"} if m.get('nb_avis',0)>0 else None,
+            ]
+            r_dpd = [r for r in r_dpd if r]
+            c1,c2,c3 = st.columns(3)
+            with c1: st.markdown(kpi("Colis", str(m['nb_colis']), m['label'], 'blue'), unsafe_allow_html=True)
+            with c2: st.markdown(kpi("Avisés", f"{m.get('nb_avis',0)}", f"{m.get('taux_avis_pct',0):.1f}%", 'green' if m.get('taux_avis_pct',0)<5 else 'red'), unsafe_allow_html=True)
+            with c3: st.markdown(kpi("Île/montagne", str(m.get('nb_ile_montagne',0)), f"{m.get('total_ile_montagne_ht',0):.2f}€ HT", 'gold'), unsafe_allow_html=True)
+            st.markdown("---")
 
 # ════════════ TAB 4 — SIMULATEUR ════════════
 with tab4:
@@ -593,9 +638,27 @@ with tab5:
 # ════════════ TAB 6 — SCORE ════════════
 with tab6:
     st.markdown('<div class="section-title">🏆 Score final</div>', unsafe_allow_html=True)
-    if not st.session_state.gls_data:
-        st.info("Importe des BCF.")
-    else:
+    has_gls6 = bool(st.session_state.gls_data)
+    has_dpd6 = bool(st.session_state.dpd_data)
+    if not has_gls6 and not has_dpd6:
+        st.info("Importe des BCF GLS et/ou DPD pour générer le score.")
+    # ── Score DPD réel si BCF DPD chargé ──
+    if has_dpd6 and not has_gls6:
+        st.markdown('<div class="section-title">🔴 DPD — Analyse des BCF réels</div>', unsafe_allow_html=True)
+        tot_dpd_fact = sum(m['total_facture_ttc'] for m in st.session_state.dpd_data)
+        tot_dpd_colis = sum(m['nb_colis'] for m in st.session_state.dpd_data)
+        tot_avis = sum(m.get('nb_avis',0) for m in st.session_state.dpd_data)
+        taux_avis_moy = tot_avis/tot_dpd_colis*100 if tot_dpd_colis else 0
+        c1,c2,c3,c4 = st.columns(4)
+        with c1: st.markdown(kpi("Colis DPD", f"{tot_dpd_colis:,}".replace(',', ' '), f"{len(st.session_state.dpd_data)} mois"), unsafe_allow_html=True)
+        with c2: st.markdown(kpi("Facture TTC", f"{tot_dpd_fact:,.0f}€".replace(',', ' '), "réel"), unsafe_allow_html=True)
+        with c3: st.markdown(kpi("Coût moy/colis", f"{tot_dpd_fact/tot_dpd_colis:.2f}€" if tot_dpd_colis else "—", "TTC"), unsafe_allow_html=True)
+        with c4: st.markdown(kpi("Taux avisés", f"{taux_avis_moy:.1f}%", "cible <5%", 'green' if taux_avis_moy<5 else 'red'), unsafe_allow_html=True)
+        for m in st.session_state.dpd_data:
+            for a in m.get('alertes',[]):
+                if '🔴' in a: st.markdown(f'<div class="alert-red">{a}</div>', unsafe_allow_html=True)
+                else: st.markdown(f'<div class="alert-gold">{a}</div>', unsafe_allow_html=True)
+    if has_gls6:
         tg = sum(m['total_gls_ht'] for m in st.session_state.gls_data)
         td = sum(m['total_dpd_ht'] for m in st.session_state.gls_data)
         ep = (tg-td)/tg*100 if tg else 0
