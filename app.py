@@ -25,7 +25,9 @@ st.set_page_config(page_title="ADC — Transpo Dashboard", page_icon="🚚", lay
 def check_password():
     """Vérifie le mot de passe — multi-utilisateurs."""
     def password_entered():
-        pwd = st.session_state["password"]
+        pwd = st.session_state.get("password", "")
+        if not pwd:
+            return
         # Mots de passe valides : ADC + clients
         valid_passwords = {
             st.secrets.get("PASSWORD", "adc2026"): {"user": "ADC", "remise_sgo": True},
@@ -34,7 +36,6 @@ def check_password():
         if pwd in valid_passwords:
             st.session_state["password_correct"] = True
             st.session_state["user_config"] = valid_passwords[pwd]
-            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
