@@ -23,10 +23,17 @@ from utils.tarifs import (
 st.set_page_config(page_title="ADC — Transpo Dashboard", page_icon="🚚", layout="wide")
 
 def check_password():
-    """Vérifie le mot de passe avant d'afficher le dashboard."""
+    """Vérifie le mot de passe — multi-utilisateurs."""
     def password_entered():
-        if st.session_state["password"] == st.secrets.get("PASSWORD", "adc2026"):
+        pwd = st.session_state["password"]
+        # Mots de passe valides : ADC + clients
+        valid_passwords = {
+            st.secrets.get("PASSWORD", "adc2026"): {"user": "ADC", "remise_sgo": True},
+            st.secrets.get("PASSWORD_CLIENT1", "client2026"): {"user": "CLIENT1", "remise_sgo": False},
+        }
+        if pwd in valid_passwords:
             st.session_state["password_correct"] = True
+            st.session_state["user_config"] = valid_passwords[pwd]
             del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
@@ -34,12 +41,11 @@ def check_password():
     if st.session_state.get("password_correct", False):
         return True
 
-    # Page de login
     st.markdown("""
     <div style="max-width:400px;margin:120px auto;text-align:center;">
         <div style="font-size:48px;margin-bottom:16px;">🚚</div>
         <div style="font-size:24px;font-weight:800;color:#F0F2F8;margin-bottom:8px;">Transpo Dashboard</div>
-        <div style="font-size:13px;color:#5a6080;margin-bottom:32px;">Allée du Commerce — Marseille</div>
+        <div style="font-size:13px;color:#5a6080;margin-bottom:32px;">Analyse transport e-commerce</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -103,6 +109,10 @@ MOIS_NOMS = ['Janvier','Février','Mars','Avril','Mai','Juin',
              'Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 
 # ─── SESSION STATE ────────────────────────────────────────────────────────────
+# Config utilisateur (défaut = ADC)
+if 'user_config' not in st.session_state:
+    st.session_state['user_config'] = {"user": "ADC", "remise_sgo": True}
+
 for key, val in [
     ('gls_data',[]),('dpd_data',[]),
     ('sgo_cache',{'gls':None,'dpd':None}),
