@@ -486,8 +486,8 @@ with tab2:
         c1,c2,c3,c4 = st.columns(4)
         with c1: ui.metric_card(title="NCY HT", content=f"{tot_ncy:,.0f}€".replace(',', ' '), description="période")
         with c2: ui.metric_card(title="NCY TTC", content=f"{tot_ncy*1.2:,.0f}€".replace(',', ' '), description="+TVA")
-        with c3: ui.metric_card(title="Colis NCY", content=str(nb_ncy), description=f"{nb_ncy/nb_col*100:.1f}%")
-        with c4: ui.metric_card(title="Projection 12M", content=f"{tot_ncy/nb_m*12*1.2:,.0f}€".replace(',', ' '), description="TTC/an")
+        with c3: ui.metric_card(title="Colis NCY", content=str(nb_ncy), description=f"{nb_ncy/nb_col if nb_col else 0*100 if nb_col else 0:.1f}%")
+        with c4: ui.metric_card(title="Projection 12M", content=f"{tot_ncy/nb_m*12 if nb_m else 0*1.2:,.0f}€".replace(',', ' '), description="TTC/an")
 
         for k,p in st.session_state.ncy_profils.items():
             if p['actif']:
@@ -657,7 +657,7 @@ with tab6:
         c1,c2,c3,c4 = st.columns(4)
         with c1: st.markdown(kpi("Colis DPD", f"{tot_dpd_colis:,}".replace(',', ' '), f"{len(st.session_state.dpd_data)} mois"), unsafe_allow_html=True)
         with c2: st.markdown(kpi("Facture TTC", f"{tot_dpd_fact:,.0f}€".replace(',', ' '), "réel"), unsafe_allow_html=True)
-        with c3: st.markdown(kpi("Coût moy/colis", f"{tot_dpd_fact/tot_dpd_colis:.2f}€" if tot_dpd_colis else "—", "TTC"), unsafe_allow_html=True)
+        with c3: st.markdown(kpi("Coût moy/colis", f"{tot_dpd_fact/tot_dpd_colis if tot_dpd_colis else 0:.2f}€" if tot_dpd_colis else "—", "TTC"), unsafe_allow_html=True)
         with c4: st.markdown(kpi("Taux avisés", f"{taux_avis_moy:.1f}%", "cible <5%", 'green' if taux_avis_moy<5 else 'red'), unsafe_allow_html=True)
         for m in st.session_state.dpd_data:
             for a in m.get('alertes',[]):
