@@ -367,11 +367,11 @@ with tab1:
 
             # KPIs shadcn
             c1,c2,c3,c4,c5 = st.columns(5)
-            with c1: ui.metric_card(title="Colis analysés", content=f"{tc:,}".replace(',', ' '), description=f"{nb_m} mois")
-            with c2: ui.metric_card(title="GLS facturé TTC", content=f"{tg_ttc:,.0f}€".replace(',', ' '), description="réel")
-            with c3: ui.metric_card(title="DPD simulé TTC", content=f"{td_ttc:,.0f}€".replace(',', ' '), description="théorique")
-            with c4: ui.metric_card(title="Économie DPD", content=f"{te_ttc:,.0f}€ TTC".replace(',', ' '), description=f"{ep:.1f}%")
-            with c5: ui.metric_card(title="NCY TTC", content=f"{tn_ttc:,.0f}€ TTC".replace(',', ' '), description="GLS only")
+            with c1: st.markdown(kpi("Colis analysés", f"{tc:,}".replace(',', ' '), f"{nb_m} mois"), unsafe_allow_html=True)
+            with c2: st.markdown(kpi("GLS facturé TTC", f"{tg_ttc:,.0f}€".replace(',', ' '), "réel"), unsafe_allow_html=True)
+            with c3: st.markdown(kpi("DPD simulé TTC", f"{td_ttc:,.0f}€".replace(',', ' '), "théorique"), unsafe_allow_html=True)
+            with c4: st.markdown(kpi("Économie DPD", f"{te_ttc:,.0f}€ TTC".replace(',', ' '), f"{ep:.1f}%", 'green' if te_ttc>0 else 'red'), unsafe_allow_html=True)
+            with c5: st.markdown(kpi("NCY TTC", f"{tn_ttc:,.0f}€ TTC".replace(',', ' '), "GLS only", 'red'), unsafe_allow_html=True)
 
             signe = "+" if te_ttc>0 else ""
             st.markdown(f"""
@@ -398,11 +398,11 @@ with tab1:
                 c1,c2,c3,c4,c5 = st.columns(5)
                 eco = m.get('economie_vs_gls_ttc',0)
                 taux = m.get('taux_avis_pct',0)
-                with c1: ui.metric_card(title="Colis", content=str(m['nb_colis']), description=m['label'])
-                with c2: ui.metric_card(title="Facture DPD TTC", content=f"{m['total_facture_ttc']:,.0f}€".replace(',', ' '), description="réel")
-                with c3: ui.metric_card(title="GLS théorique TTC", content=f"{m.get('gls_theorique_ht',0)*1.2:,.0f}€".replace(',', ' '), description="sim")
-                with c4: ui.metric_card(title="Éco vs GLS", content=f"{eco:+,.0f}€ TTC".replace(',', ' '), description="")
-                with c5: ui.metric_card(title="Taux avisés", content=f"{taux:.1f}%", description="cible <5%")
+                with c1: st.markdown(kpi("Colis", str(m['nb_colis']), m['label'], 'blue'), unsafe_allow_html=True)
+                with c2: st.markdown(kpi("Facture DPD TTC", f"{m['total_facture_ttc']:,.0f}€".replace(',', ' '), "réel"), unsafe_allow_html=True)
+                with c3: st.markdown(kpi("GLS théorique TTC", f"{m.get('gls_theorique_ht',0)*1.2:,.0f}€".replace(',', ' '), "sim"), unsafe_allow_html=True)
+                with c4: st.markdown(kpi("Éco vs GLS", f"{eco:+,.0f}€ TTC".replace(',', ' '), "", 'green' if eco>0 else 'red'), unsafe_allow_html=True)
+                with c5: st.markdown(kpi("Taux avisés", f"{taux:.1f}%", "cible <5%"), unsafe_allow_html=True)
                 for a in m.get('alertes',[]):
                     if '🔴' in a: st.markdown(f'<div class="alert-red">{a}</div>', unsafe_allow_html=True)
                     else: st.markdown(f'<div class="alert-gold">{a}</div>', unsafe_allow_html=True)
@@ -484,10 +484,10 @@ with tab2:
         nb_m    = len(st.session_state.gls_data)
 
         c1,c2,c3,c4 = st.columns(4)
-        with c1: ui.metric_card(title="NCY HT", content=f"{tot_ncy:,.0f}€".replace(',', ' '), description="période")
-        with c2: ui.metric_card(title="NCY TTC", content=f"{tot_ncy*1.2:,.0f}€".replace(',', ' '), description="+TVA")
-        with c3: ui.metric_card(title="Colis NCY", content=str(nb_ncy), description=f"{nb_ncy/nb_col if nb_col else 0*100 if nb_col else 0:.1f}%")
-        with c4: ui.metric_card(title="Projection 12M", content=f"{tot_ncy/nb_m*12 if nb_m else 0*1.2:,.0f}€".replace(',', ' '), description="TTC/an")
+        with c1: st.markdown(kpi("NCY HT", f"{tot_ncy:,.0f}€".replace(',', ' '), "période", 'red'), unsafe_allow_html=True)
+        with c2: st.markdown(kpi("NCY TTC", f"{tot_ncy*1.2:,.0f}€".replace(',', ' '), "+TVA", 'red'), unsafe_allow_html=True)
+        with c3: st.markdown(kpi("Colis NCY", str(nb_ncy), f"{nb_ncy/nb_col*100 if nb_col else 0:.1f}%", 'red'), unsafe_allow_html=True)
+        with c4: st.markdown(kpi("Projection 12M", f"{tot_ncy/nb_m*12*1.2 if nb_m else 0:,.0f}€".replace(',', ' '), "TTC/an", 'red'), unsafe_allow_html=True)
 
         for k,p in st.session_state.ncy_profils.items():
             if p['actif']:
@@ -541,9 +541,9 @@ with tab2:
             _,sd_mc = get_sgo_mois(now.year, now.month)
             res = calcul_surcoût_multicolis_dpd(nb_mc, sd_mc)
             c1,c2,c3 = st.columns(3)
-            with c1: ui.metric_card(title="GLS 9-10kg", content=f"{res['gls_9kg_ht']:.2f}€ HT", description="1 colis + NCY 39%")
-            with c2: ui.metric_card(title="DPD 2 colis", content=f"{res['dpd_moy_ht']:.2f}€ HT", description="50% 2×5kg / 50% 6+3kg")
-            with c3: ui.metric_card(title="Surcoût/colis", content=f"{res['surcoût_par_colis_ht']:+.2f}€ HT", description="DPD plus cher" if res['surcoût_par_colis_ht']>0 else "DPD moins cher")
+            with c1: st.markdown(kpi("GLS 9-10kg", f"{res['gls_9kg_ht']:.2f}€ HT", "1 colis + NCY 39%"), unsafe_allow_html=True)
+            with c2: st.markdown(kpi("DPD 2 colis", f"{res['dpd_moy_ht']:.2f}€ HT", "50% 2×5kg / 50% 6+3kg"), unsafe_allow_html=True)
+            with c3: st.markdown(kpi("Surcoût/colis", f"{res['surcoût_par_colis_ht']:+.2f}€ HT", "DPD plus cher"), unsafe_allow_html=True)
             impact = res['surcoût_total_ttc']*12
             st.markdown(f'<div class="alert-{"red" if impact>0 else "green"}">Impact annuel ({nb_mc} colis/mois) : <b>{impact:+,.0f}€ TTC/an</b> — {"⚠️ Garder GLS" if impact>0 else "✅ DPD OK"}</div>'.replace(',', ' '), unsafe_allow_html=True)
 
@@ -574,17 +574,30 @@ with tab3:
         st.markdown('<div class="alert-red">⚠️ Italie : conserver GLS — DPD Zone 3 nettement plus cher</div>', unsafe_allow_html=True)
     if has_dpd3:
         st.markdown('<div class="section-title">🔴 DPD — Analyse par pays (données réelles)</div>', unsafe_allow_html=True)
-        for m in st.session_state.dpd_data:
+        for idx_m, m in enumerate(st.session_state.dpd_data):
             st.markdown(f"**{m['label']}** — {m['nb_colis']} colis")
-            r_dpd = [
-                {'Surcharge':'🏝️ Île/montagne','Nb':m.get('nb_ile_montagne',0),'HT':f"{m.get('total_ile_montagne_ht',0):.2f}€"} if m.get('nb_ile_montagne',0)>0 else None,
-                {'Surcharge':'⚠️ Avisés','Nb':m.get('nb_avis',0),'HT':f"{m.get('cout_avis_ht',0):.2f}€"} if m.get('nb_avis',0)>0 else None,
-            ]
-            r_dpd = [r for r in r_dpd if r]
             c1,c2,c3 = st.columns(3)
             with c1: st.markdown(kpi("Colis", str(m['nb_colis']), m['label'], 'blue'), unsafe_allow_html=True)
-            with c2: st.markdown(kpi("Avisés", f"{m.get('nb_avis',0)}", f"{m.get('taux_avis_pct',0):.1f}%", 'green' if m.get('taux_avis_pct',0)<5 else 'red'), unsafe_allow_html=True)
+            with c2:
+                tav = m.get('taux_avis_pct',0)
+                style_av = 'green' if tav<5 else ('gold' if tav<9 else 'red')
+                st.markdown(kpi("Taux avisés", f"{tav:.1f}%", "cible <5%", style_av), unsafe_allow_html=True)
             with c3: st.markdown(kpi("Île/montagne", str(m.get('nb_ile_montagne',0)), f"{m.get('total_ile_montagne_ht',0):.2f}€ HT", 'gold'), unsafe_allow_html=True)
+            # Tableau surcharges géo depuis le df DPD
+            if m.get('df') is not None and len(m['df']) > 0:
+                df_dpd = m['df'].copy()
+                # Regrouper par destination si dispo
+                rows_geo = []
+                if 'Supplément île et montagne' in df_dpd.columns:
+                    ile = df_dpd[df_dpd['Supplément île et montagne']>0]
+                    if len(ile)>0:
+                        rows_geo.append({'Zone':'🏝️ Île/Corse/Montagne','Nb colis':len(ile),'Total HT':f"{ile['Supplément île et montagne'].sum():.2f}€",'Moy/colis':f"{ile['Supplément île et montagne'].mean():.2f}€"})
+                if 'Fact. statuts Absent Avisés' in df_dpd.columns:
+                    avis = df_dpd[df_dpd['Fact. statuts Absent Avisés']>0]
+                    if len(avis)>0:
+                        rows_geo.append({'Zone':'⚠️ Avisés (absent)','Nb colis':len(avis),'Total HT':f"{avis['Fact. statuts Absent Avisés'].sum():.2f}€",'Moy/colis':f"{avis['Fact. statuts Absent Avisés'].mean():.2f}€"})
+                if rows_geo:
+                    st.dataframe(pd.DataFrame(rows_geo), use_container_width=True, hide_index=True)
             st.markdown("---")
 
 # ════════════ TAB 4 — SIMULATEUR ════════════
@@ -600,9 +613,9 @@ with tab4:
     _,dt = cout_dpd(poids_sim,pays_sim,sd)
     eco = gt-dt
     c1,c2,c3 = st.columns(3)
-    with c1: ui.metric_card(title="GLS HT", content=f"{gt:.2f}€", description=f"SGO net {sg*100:.2f}%")
-    with c2: ui.metric_card(title="DPD HT", content=f"{dt:.2f}€", description=f"SGO {sd*100:.2f}%")
-    with c3: ui.metric_card(title="Écart", content=f"{eco:+.2f}€", description="DPD" if eco>0.05 else ("GLS" if eco<-0.05 else "Égal"))
+    with c1: st.markdown(kpi("GLS HT", f"{gt:.2f}€", f"SGO net {sg*100:.2f}%"), unsafe_allow_html=True)
+    with c2: st.markdown(kpi("DPD HT", f"{dt:.2f}€", f"SGO {sd*100:.2f}%"), unsafe_allow_html=True)
+    with c3: st.markdown(kpi("Écart", f"{eco:+.2f}€", "DPD"), unsafe_allow_html=True)
     if pays_sim=='IT': st.markdown('<div class="alert-red">⚠️ Italie : garder GLS — DPD Zone 3 beaucoup plus cher</div>', unsafe_allow_html=True)
     elif poids_sim>=4.5 and eco>0: st.markdown(f'<div class="alert-green">✅ Soute {poids_sim}kg : DPD moins cher de {eco:.2f}€/colis (hors NCY)</div>', unsafe_allow_html=True)
 
@@ -726,8 +739,8 @@ with tab7:
             else:
                 na=cs['nb_anomalies']; sf=cs['montant_surcharge_injustifiee']
                 c_1,c_2 = st.columns(2)
-                with c_1: ui.metric_card(title="Anomalies", content=str(na), description="")
-                with c_2: ui.metric_card(title="Surfacturation HT", content=f"{sf:.2f}€", description="à réclamer")
+                with c_1: st.markdown(kpi("Anomalies", str(na), ""), unsafe_allow_html=True)
+                with c_2: st.markdown(kpi("Surfacturation HT", f"{sf:.2f}€", "à réclamer"), unsafe_allow_html=True)
                 if na==0:
                     st.markdown('<div class="alert-green">✅ Aucune anomalie détectée</div>', unsafe_allow_html=True)
                 else:
@@ -751,21 +764,50 @@ with tab7:
             st.markdown('<div style="background:#141720;border-radius:8px;padding:14px;font-size:13px;color:#5a6080;line-height:2;">🔴 Barème poids · 🔴 CSR (0,71€) · 🔴 SGO mensuel<br>🔴 NCY injustifiée · 🔴 Double NCY · 🟡 PER (1,5%)</div>', unsafe_allow_html=True)
 
     with c2:
-        st.markdown('<span class="badge-dpd">DPD</span> &nbsp; Contrôle contractuel ADC', unsafe_allow_html=True)
+        st.markdown('<span class="badge-dpd">DPD</span> &nbsp; Contrôle contractuel — vérification facturation', unsafe_allow_html=True)
         cf_dpd = st.file_uploader("BCF DPD à contrôler (Excel)", type=['xlsx','xls'], key='cd')
         if cf_dpd:
-            with st.spinner("Contrôle DPD..."):
-                ds,de = parse_bcf_dpd(cf_dpd,config=st.session_state.dpd_config,sgo_dpd_manuel=sgo_dpd_input/100)
-            if de: st.error(de)
+            if st.button("🔍 Valider le BCF DPD", type="primary", use_container_width=True, key="btn_val_dpd"):
+                with st.spinner("Contrôle facturation DPD..."):
+                    ds,de = parse_bcf_dpd(cf_dpd,config=st.session_state.dpd_config,sgo_dpd_manuel=sgo_dpd_input/100)
+                if de:
+                    st.error(de)
+                else:
+                    st.session_state['dpd_ctrl_result'] = ds
+
+        if 'dpd_ctrl_result' in st.session_state:
+            ds = st.session_state['dpd_ctrl_result']
+            adf = ds.get('anomalies_df', pd.DataFrame())
+            na = len(adf)
+            tav = ds.get('taux_avis_pct', 0)
+            style_av = 'green' if tav<5 else ('gold' if tav<9 else 'red')
+            c_1,c_2,c_3 = st.columns(3)
+            with c_1: st.markdown(kpi("Anomalies DPD", str(na), "à vérifier", 'red' if na>0 else 'green'), unsafe_allow_html=True)
+            with c_2: st.markdown(kpi("Taux avisés", f"{tav:.1f}%", "cible <5%", style_av), unsafe_allow_html=True)
+            with c_3: st.markdown(kpi("Colis analysés", str(ds.get('nb_colis',0)), ""), unsafe_allow_html=True)
+            for a in ds.get('alertes',[]):
+                if '🔴' in a: st.markdown(f'<div class="alert-red">{a}</div>', unsafe_allow_html=True)
+                else: st.markdown(f'<div class="alert-gold">{a}</div>', unsafe_allow_html=True)
+            if na == 0:
+                st.markdown('<div class="alert-green">✅ Aucune anomalie — facturation DPD conforme au contrat</div>', unsafe_allow_html=True)
             else:
-                adf=ds.get('anomalies_df',pd.DataFrame())
-                c_1,c_2 = st.columns(2)
-                with c_1: ui.metric_card(title="Anomalies DPD", content=str(len(adf)), description="")
-                with c_2: ui.metric_card(title="Taux avisés", content=f"{ds['taux_avis_pct']:.1f}%", description="cible <5%")
-                for a in ds.get('alertes',[]):
-                    if '🔴' in a: st.markdown(f'<div class="alert-red">{a}</div>', unsafe_allow_html=True)
-                    else: st.markdown(f'<div class="alert-gold">{a}</div>', unsafe_allow_html=True)
-                if len(adf)>0:
-                    aggrid_table(adf, height=300)
+                st.markdown(f'<div class="alert-red">⚠️ {na} anomalie(s) détectée(s) — export disponible pour réclamation</div>', unsafe_allow_html=True)
+                st.dataframe(adf, use_container_width=True, hide_index=True)
+                out_dpd = io.BytesIO()
+                with pd.ExcelWriter(out_dpd, engine='xlsxwriter') as w:
+                    adf.to_excel(w, sheet_name='Anomalies DPD', index=False)
+                    pd.DataFrame([
+                        {'Métrique':'Nb anomalies','Valeur':na},
+                        {'Métrique':'Taux avisés','Valeur':f"{tav:.1f}%"},
+                        {'Métrique':'Colis analysés','Valeur':ds.get('nb_colis',0)},
+                        {'Métrique':'Facture HT','Valeur':f"{ds.get('total_facture_ht',0):.2f}€"},
+                    ]).to_excel(w, sheet_name='Résumé', index=False)
+                st.download_button(
+                    "📥 Exporter anomalies DPD (pour réclamation)",
+                    data=out_dpd.getvalue(),
+                    file_name=f"DPD_anomalies_{now.strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True, key="dl_dpd_anomalies",
+                )
         else:
-            st.markdown('<div style="background:#141720;border-radius:8px;padding:14px;font-size:13px;color:#5a6080;line-height:2;">🔴 Volumétrique barré · 🟡 EDI manquante<br>⚠️ Avisés >5% · 🔴 Tarif avisé > négocié · ⚠️ Zebra 60€</div>', unsafe_allow_html=True)
+            st.markdown('<div style="background:#141720;border-radius:8px;padding:14px;font-size:13px;color:#5a6080;line-height:2;">Upload un BCF DPD et clique Valider pour vérifier la conformité au contrat.<br>🟡 EDI manquante · ⚠️ Avisés &gt;5% · 🔴 Tarif avisé &gt; négocié · ⚠️ Zebra 60€</div>', unsafe_allow_html=True)
