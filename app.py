@@ -39,11 +39,18 @@ def check_password():
         pwd = st.session_state.get("password", "")
         if not pwd:
             return
-        # Mots de passe valides : ADC + clients
-        valid_passwords = {
-            st.secrets.get("PASSWORD", "adc2026"): {"user": "ADC", "remise_sgo": True},
-            st.secrets.get("PASSWORD_CLIENT1", "client2026"): {"user": "CLIENT1", "remise_sgo": False},
-        }
+        # Mots de passe valides — construction sécurisée
+        valid_passwords = {}
+        try:
+            p1 = st.secrets.get("PASSWORD", "adc2026")
+            if p1: valid_passwords[p1] = {"user": "ADC", "remise_sgo": True}
+        except: valid_passwords["adc2026"] = {"user": "ADC", "remise_sgo": True}
+        try:
+            p2 = st.secrets.get("PASSWORD_CLIENT1", "")
+            if p2 and p2 not in valid_passwords:
+                valid_passwords[p2] = {"user": "CLIENT1", "remise_sgo": False}
+        except: pass
+
         if pwd in valid_passwords:
             st.session_state["password_correct"] = True
             st.session_state["user_config"] = valid_passwords[pwd]
