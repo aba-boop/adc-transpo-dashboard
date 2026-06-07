@@ -22,6 +22,17 @@ from utils.tarifs import (
 
 st.set_page_config(page_title="ADC — Transpo Dashboard", page_icon="🚚", layout="wide")
 
+# Cacher le menu Streamlit (hamburger, footer, header)
+st.markdown("""
+<style>
+#MainMenu {visibility: hidden !important;}
+footer {visibility: hidden !important;}
+header {visibility: hidden !important;}
+[data-testid="stToolbar"] {visibility: hidden !important;}
+.stDeployButton {display: none !important;}
+</style>
+""", unsafe_allow_html=True)
+
 def check_password():
     """Vérifie le mot de passe — multi-utilisateurs."""
     def password_entered():
@@ -78,10 +89,16 @@ button[kind="primary"]:hover{transform:translateY(-1px);box-shadow:0 4px 20px rg
 .badge-gls{background:linear-gradient(135deg,#1a2a5e,#1e3270);color:#93b4fd;padding:5px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid #2a3a7e;display:inline-block;}
 .badge-dpd{background:linear-gradient(135deg,#5e1a1a,#721e1e);color:#fca5a5;padding:5px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid #8a2a2a;display:inline-block;}
 .kpi{background:linear-gradient(135deg,#0f1120,#141720);border:1px solid #1e2235;border-radius:16px;padding:20px 22px;margin:4px 0;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden;}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:2px 2px 0 0;}
+.kpi-green{background:linear-gradient(135deg,#001508,#001e0a);border-color:#22c55e;box-shadow:0 0 20px rgba(34,197,94,.12);}
 .kpi-green::before{background:linear-gradient(90deg,#22c55e,#16a34a);}
+.kpi-green .kpi-val{color:#22c55e !important;text-shadow:0 0 20px rgba(34,197,94,.4);}
+.kpi-red{background:linear-gradient(135deg,#150000,#1e0000);border-color:#ef4444;box-shadow:0 0 20px rgba(239,68,68,.12);}
 .kpi-red::before{background:linear-gradient(90deg,#ef4444,#dc2626);}
+.kpi-red .kpi-val{color:#ef4444 !important;text-shadow:0 0 20px rgba(239,68,68,.4);}
+.kpi-gold{background:linear-gradient(135deg,#0f1120,#141720);border-color:#E8B84B;}
 .kpi-gold::before{background:linear-gradient(90deg,#E8B84B,#f0c96a);}
+.kpi-gold .kpi-val{color:#E8B84B !important;}
 .kpi-blue::before{background:linear-gradient(90deg,#3b82f6,#2563eb);}
 .kpi:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.4);border-color:#2a2e45;}
 .kpi-label{font-size:10px;font-weight:700;color:#4a5070;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;}
@@ -217,7 +234,7 @@ with st.sidebar:
     w_fact = st.slider("📄 Facturation", 0, 100, 20)
 
 # ─── HEADER ──────────────────────────────────────────────────────────────────
-c1, c2 = st.columns([6,1])
+c1, c2 = st.columns([8,1])
 with c1:
     st.markdown("""
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #1e2235;">
@@ -229,6 +246,12 @@ with c1:
         <div style="font-size:11px;color:#3a4060;">Allée du Commerce — Marseille 13015</div>
     </div>
     """, unsafe_allow_html=True)
+with c2:
+    st.markdown("<div style='padding-top:4px;'></div>", unsafe_allow_html=True)
+    if st.button("🔓 Quitter", use_container_width=True, key="btn_logout"):
+        st.session_state["password_correct"] = False
+        st.session_state.pop("user_config", None)
+        st.rerun()
 
 # ─── IMPORT GLS + DPD COTE A COTE ────────────────────────────────────────────
 col_gls, col_dpd = st.columns(2)
@@ -594,20 +617,46 @@ with tab3:
                 st.markdown(kpi("Taux avisés", f"{tav:.1f}%", "cible <5%", style_av), unsafe_allow_html=True)
             with c3: st.markdown(kpi("Île/montagne", str(m.get('nb_ile_montagne',0)), f"{m.get('total_ile_montagne_ht',0):.2f}€ HT", 'gold'), unsafe_allow_html=True)
             # Tableau surcharges géo depuis le df DPD
-            if m.get('df') is not None and len(m['df']) > 0:
-                df_dpd = m['df'].copy()
-                # Regrouper par destination si dispo
-                rows_geo = []
-                if 'Supplément île et montagne' in df_dpd.columns:
-                    ile = df_dpd[df_dpd['Supplément île et montagne']>0]
-                    if len(ile)>0:
-                        rows_geo.append({'Zone':'🏝️ Île/Corse/Montagne','Nb colis':len(ile),'Total HT':f"{ile['Supplément île et montagne'].sum():.2f}€",'Moy/colis':f"{ile['Supplément île et montagne'].mean():.2f}€"})
-                if 'Fact. statuts Absent Avisés' in df_dpd.columns:
-                    avis = df_dpd[df_dpd['Fact. statuts Absent Avisés']>0]
-                    if len(avis)>0:
-                        rows_geo.append({'Zone':'⚠️ Avisés (absent)','Nb colis':len(avis),'Total HT':f"{avis['Fact. statuts Absent Avisés'].sum():.2f}€",'Moy/colis':f"{avis['Fact. statuts Absent Avisés'].mean():.2f}€"})
-                if rows_geo:
-                    st.dataframe(pd.DataFrame(rows_geo), use_container_width=True, hide_index=True)
+            # Détail surcharges géographiques
+            rows_geo = []
+            if m.get('nb_ile_montagne', 0) > 0:
+                rows_geo.append({
+                    'Type': '🏝️ Île / Corse / Montagne',
+                    'Nb colis': m['nb_ile_montagne'],
+                    'Total HT': f"{m['total_ile_montagne_ht']:.2f}€",
+                    'Coût moy/colis': f"{m['total_ile_montagne_ht']/m['nb_ile_montagne']:.2f}€",
+                    'Remarque': 'Supplément géographique standard'
+                })
+            if m.get('nb_avis', 0) > 0:
+                cout_u = m['cout_avis_ht']/m['nb_avis'] if m['nb_avis'] > 0 else 0
+                rows_geo.append({
+                    'Type': '⚠️ Avisés (absent)',
+                    'Nb colis': m['nb_avis'],
+                    'Total HT': f"{m['cout_avis_ht']:.2f}€",
+                    'Coût moy/colis': f"{cout_u:.2f}€",
+                    'Remarque': '⚠️ Tarif > 1€ ?' if cout_u > 1.1 else '✅ Tarif conforme'
+                })
+            if m.get('nb_retours', 0) > 0:
+                rows_geo.append({
+                    'Type': '↩️ Retours',
+                    'Nb colis': m['nb_retours'],
+                    'Total HT': f"{m['cout_retours_ht']:.2f}€",
+                    'Coût moy/colis': f"{m['cout_retours_ht']/m['nb_retours']:.2f}€" if m['nb_retours'] else '—',
+                    'Remarque': "Retour à l'expéditeur"
+                })
+            if m.get('nb_edi', 0) > 0:
+                rows_geo.append({
+                    'Type': '🟡 EDI manquante',
+                    'Nb colis': m['nb_edi'],
+                    'Total HT': f"{m['cout_edi_ht']:.2f}€",
+                    'Coût moy/colis': f"{m['cout_edi_ht']/m['nb_edi']:.2f}€" if m['nb_edi'] else '—',
+                    'Remarque': '🔧 Corriger intégration technique'
+                })
+            if rows_geo:
+                st.markdown("**Surcharges détectées :**")
+                st.dataframe(pd.DataFrame(rows_geo), use_container_width=True, hide_index=True)
+            else:
+                st.markdown('<div class="alert-green">✅ Aucune surcharge géographique détectée</div>', unsafe_allow_html=True)
             st.markdown("---")
 
 # ════════════ TAB 4 — SIMULATEUR ════════════
@@ -812,35 +861,52 @@ with tab7:
         st.markdown('<span class="badge-gls">GLS</span> &nbsp; Contrôle barème / CSR / PER / SGO / NCY', unsafe_allow_html=True)
         cf_gls = st.file_uploader("BCF GLS à contrôler (CSV)", type=['csv'], key='cg')
         if cf_gls:
-            with st.spinner("Contrôle GLS..."):
-                cs,ce = controler_bcf_gls(cf_gls)
-            if ce: st.error(ce)
+            if st.button("🔍 Valider le BCF GLS", type="primary", use_container_width=True, key="btn_val_gls"):
+                with st.spinner("Contrôle GLS en cours..."):
+                    cs,ce = controler_bcf_gls(cf_gls)
+                if ce: st.error(ce)
+                else: st.session_state['gls_ctrl_result'] = cs
+
+        if 'gls_ctrl_result' in st.session_state:
+            cs = st.session_state['gls_ctrl_result']
+            na=cs['nb_anomalies']; sf=cs['montant_surcharge_injustifiee']
+            c_1,c_2 = st.columns(2)
+            with c_1: st.markdown(kpi("Anomalies GLS", str(na), "", 'red' if na>0 else 'green'), unsafe_allow_html=True)
+            with c_2: st.markdown(kpi("Surfacturation HT", f"{sf:.2f}€", "à réclamer", 'red' if sf>0 else 'green'), unsafe_allow_html=True)
+            if na==0:
+                st.markdown('<div class="alert-green">✅ Aucune anomalie — facturation GLS conforme</div>', unsafe_allow_html=True)
             else:
-                na=cs['nb_anomalies']; sf=cs['montant_surcharge_injustifiee']
-                c_1,c_2 = st.columns(2)
-                with c_1: st.markdown(kpi("Anomalies", str(na), ""), unsafe_allow_html=True)
-                with c_2: st.markdown(kpi("Surfacturation HT", f"{sf:.2f}€", "à réclamer"), unsafe_allow_html=True)
-                if na==0:
-                    st.markdown('<div class="alert-green">✅ Aucune anomalie détectée</div>', unsafe_allow_html=True)
-                else:
-                    for t,n in cs['par_type'].items():
-                        mt=cs['par_type_montant'][t]
-                        st.markdown(f'<div class="alert-{"red" if mt>0 else "gold"}">{t} : {n} cas — {mt:+.2f}€ HT</div>', unsafe_allow_html=True)
-                    if len(cs['anomalies_df'])>0:
-                        aggrid_table(cs['anomalies_df'], height=300, color_col='Écart', red_if_positive=True)
-                        out=io.BytesIO()
-                        with pd.ExcelWriter(out,engine='xlsxwriter') as w:
-                            cs['anomalies_df'].to_excel(w,sheet_name='Anomalies GLS',index=False)
-                        # Alerte email si anomalies élevées
+                for t,n in cs['par_type'].items():
+                    mt=cs['par_type_montant'][t]
+                    st.markdown(f'<div class="alert-{"red" if mt>0 else "gold"}">{t} : {n} cas — {mt:+.2f}€ HT</div>', unsafe_allow_html=True)
+                if len(cs['anomalies_df'])>0:
+                    st.dataframe(cs['anomalies_df'], use_container_width=True, hide_index=True)
+                    out=io.BytesIO()
+                    with pd.ExcelWriter(out,engine='xlsxwriter') as w:
+                        # Feuille 1 : Anomalies avec numéros de colis
+                        cs['anomalies_df'].to_excel(w, sheet_name='Anomalies GLS', index=False)
+                        # Feuille 2 : Résumé réclamation
+                        pd.DataFrame([
+                            {'Information':'Date contrôle','Valeur':now.strftime('%d/%m/%Y')},
+                            {'Information':'Nb anomalies','Valeur':na},
+                            {'Information':'Surfacturation HT','Valeur':f"{sf:.2f}€"},
+                            {'Information':'Sous-facturation HT','Valeur':f"{cs.get('montant_sous_facture',0):.2f}€"},
+                            {'Information':'Action','Valeur':'Envoyer ce fichier à votre commercial GLS pour réclamation'},
+                        ]).to_excel(w, sheet_name='Résumé réclamation', index=False)
+                    st.download_button(
+                        "📥 Exporter dossier de réclamation GLS (Excel)",
+                        data=out.getvalue(),
+                        file_name=f"GLS_reclamation_{now.strftime('%Y%m%d')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                    )
+                    st.markdown('<div class="alert-gold">💡 Le fichier contient les numéros de colis concernés et un résumé de réclamation prêt à envoyer à GLS.</div>', unsafe_allow_html=True)
                     if na >= 5:
-                        if st.button("📧 Envoyer alerte anomalies GLS", key="email_anomalies"):
+                        if st.button("📧 Envoyer alerte email anomalies GLS", key="email_anomalies"):
                             ok, msg = send_anomaly_alert(cs['anomalies_df'], "Contrôle GLS")
                             st.success(msg) if ok else st.error(msg)
-                    st.download_button("📥 Export GLS",data=out.getvalue(),
-                            file_name=f"GLS_anomalies_{now.strftime('%Y%m%d')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
-            st.markdown('<div style="background:#141720;border-radius:8px;padding:14px;font-size:13px;color:#5a6080;line-height:2;">🔴 Barème poids · 🔴 CSR (0,71€) · 🔴 SGO mensuel<br>🔴 NCY injustifiée · 🔴 Double NCY · 🟡 PER (1,5%)</div>', unsafe_allow_html=True)
+            st.markdown('<div style="background:#141720;border-radius:8px;padding:14px;font-size:13px;color:#5a6080;line-height:2;">Upload un BCF GLS et clique Valider pour contrôler la facturation.<br>🔴 Barème · 🔴 CSR (0,71€) · 🔴 SGO · 🔴 NCY injustifiée · 🟡 PER</div>', unsafe_allow_html=True)
 
     with c2:
         st.markdown('<span class="badge-dpd">DPD</span> &nbsp; Contrôle contractuel — vérification facturation', unsafe_allow_html=True)
