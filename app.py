@@ -1009,6 +1009,12 @@ with tab7:
 with tab8:
     st.markdown('<div class="section-title">🔮 Prévisionnel mensuel — Estimation coûts transport</div>', unsafe_allow_html=True)
 
+    # ── CHARGEMENT RATIOS PERSISTANTS ────────────────────────────────────────
+    # Charger depuis st.session_state si sauvegardés précédemment
+    RATIO_KEYS = ['r_gls_pu','r_dpd_pu','r_ncy_taux','r_ncy_pu',
+                  'r_eu_gls','r_eu_dpd','r_it_gls','r_it_dpd','r_nb_bcf','r_nb_colis']
+    has_saved_ratios = all(k in st.session_state for k in RATIO_KEYS)
+
     # ── MÉMOIRE : calcul des ratios depuis les BCF historiques ──────────────
     has_memory = bool(st.session_state.gls_data)
 
@@ -1053,12 +1059,39 @@ with tab8:
         cout_eu_dpd_u = cout_eu_dpd / total_eu if total_eu else cout_dpd_par_colis * 1.4
         pct_eu = (total_eu + total_it) / total_colis if total_colis else 0.1
 
-        st.markdown(f'<div class="alert-green">✅ Mémoire active — basée sur <b>{len(st.session_state.gls_data)} BCF</b> ({total_colis:,} colis) · Coût GLS moy : <b>{cout_gls_par_colis:.2f}€ HT/colis</b> · Coût DPD moy : <b>{cout_dpd_par_colis:.2f}€ HT/colis</b></div>'.replace(',', ' '), unsafe_allow_html=True)
+        # Sauvegarde automatique des ratios dans session_state
+        st.session_state['r_gls_pu']   = cout_gls_par_colis
+        st.session_state['r_dpd_pu']   = cout_dpd_par_colis
+        st.session_state['r_ncy_taux'] = taux_ncy_moy
+        st.session_state['r_ncy_pu']   = cout_ncy_par_colis
+        st.session_state['r_eu_gls']   = cout_eu_gls_u
+        st.session_state['r_eu_dpd']   = cout_eu_dpd_u
+        st.session_state['r_it_gls']   = cout_it_gls_u
+        st.session_state['r_it_dpd']   = cout_it_dpd_u
+        st.session_state['r_nb_bcf']   = len(st.session_state.gls_data)
+        st.session_state['r_nb_colis'] = total_colis
+
+        st.markdown(f'<div class="alert-green">✅ Mémoire active — <b>{len(st.session_state.gls_data)} BCF</b> ({total_colis:,} colis) · GLS : <b>{cout_gls_par_colis:.2f}€/colis</b> · DPD : <b>{cout_dpd_par_colis:.2f}€/colis</b> · NCY : <b>{taux_ncy_moy*100:.1f}%</b><br><small style="opacity:.7">💾 Ratios sauvegardés automatiquement pour cette session</small></div>'.replace(',', ' '), unsafe_allow_html=True)
+
+    elif has_saved_ratios:
+        # Restaurer les ratios sauvegardés (même après rechargement page)
+        cout_gls_par_colis = st.session_state['r_gls_pu']
+        cout_dpd_par_colis = st.session_state['r_dpd_pu']
+        taux_ncy_moy       = st.session_state['r_ncy_taux']
+        cout_ncy_par_colis = st.session_state['r_ncy_pu']
+        cout_eu_gls_u      = st.session_state['r_eu_gls']
+        cout_eu_dpd_u      = st.session_state['r_eu_dpd']
+        cout_it_gls_u      = st.session_state['r_it_gls']
+        cout_it_dpd_u      = st.session_state['r_it_dpd']
+        pct_eu             = 0.1
+        nb_bcf_s           = st.session_state['r_nb_bcf']
+        nb_col_s           = st.session_state['r_nb_colis']
+        st.markdown(f'<div class="alert-green">⚡ Ratios restaurés — issus de <b>{nb_bcf_s} BCF</b> ({nb_col_s:,} colis) · GLS : <b>{cout_gls_par_colis:.2f}€/colis</b> · DPD : <b>{cout_dpd_par_colis:.2f}€/colis</b> · NCY : <b>{taux_ncy_moy*100:.1f}%</b><br><small style="opacity:.7">Importez de nouveaux BCF dans la Synthèse pour mettre à jour ces ratios</small></div>'.replace(',', ' '), unsafe_allow_html=True)
+
     else:
-        st.markdown('<div class="alert-gold">⚠️ Aucun BCF chargé — importe des BCF GLS dans la Synthèse pour activer la mémoire. En attendant on utilise des ratios estimés.</div>', unsafe_allow_html=True)
-        # Ratios par défaut (basés sur les 25 mois réels ADC)
-        cout_gls_par_colis = 9.74  # HT moyen réel ADC
-        cout_dpd_par_colis = 8.88  # HT moyen réel ADC
+        st.markdown('<div class="alert-gold">⚠️ Aucun BCF chargé — importe des BCF GLS dans la Synthèse pour activer la mémoire. Ratios par défaut ADC utilisés.</div>', unsafe_allow_html=True)
+        cout_gls_par_colis = 9.74
+        cout_dpd_par_colis = 8.88
         taux_ncy_moy       = 0.115
         cout_ncy_par_colis = 7.45
         cout_eu_gls_u      = 12.50
