@@ -375,9 +375,9 @@ with col_dpd:
 st.markdown("<div style='margin:12px 0;'></div>", unsafe_allow_html=True)
 
 # ─── TABS ─────────────────────────────────────────────────────────────────────
-tab1,tab2,tab3,tab4,tab5,tab6,tab7 = st.tabs([
+tab1,tab2,tab3,tab4,tab5,tab6,tab7,tab8 = st.tabs([
     "📊 Synthèse","💰 Coûts","🌍 Géographie",
-    "🔢 Simulateur","📈 Historique","🎯 Recommandations","🔍 Contrôle"
+    "🔢 Simulateur","📈 Historique","🎯 Recommandations","🔍 Contrôle","🔮 Prévisionnel"
 ])
 
 # ════════════ TAB 1 — SYNTHÈSE ════════════
@@ -1004,3 +1004,241 @@ with tab7:
                 st.markdown('<div class="alert-gold">💡 Ce fichier contient 3 onglets : anomalies détaillées, résumé de réclamation, et le BCF complet. Envoyez-le directement à votre commercial DPD.</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div style="background:#141720;border-radius:8px;padding:14px;font-size:13px;color:#5a6080;line-height:2;">Upload un BCF DPD et clique Valider pour vérifier la conformité au contrat.<br>🟡 EDI manquante · ⚠️ Avisés &gt;5% · 🔴 Tarif avisé &gt; négocié · ⚠️ Zebra 60€</div>', unsafe_allow_html=True)
+
+# ════════════ TAB 8 — PRÉVISIONNEL ════════════
+with tab8:
+    st.markdown('<div class="section-title">🔮 Prévisionnel mensuel — Estimation coûts transport</div>', unsafe_allow_html=True)
+
+    # ── MÉMOIRE : calcul des ratios depuis les BCF historiques ──────────────
+    has_memory = bool(st.session_state.gls_data)
+
+    if has_memory:
+        # Extraire les ratios moyens depuis les BCF chargés
+        total_colis = sum(m['nb_colis'] for m in st.session_state.gls_data)
+        total_gls_ht = sum(m['total_gls_ht'] for m in st.session_state.gls_data)
+        total_dpd_ht = sum(m['total_dpd_ht'] for m in st.session_state.gls_data)
+        total_ncy_ht = sum(m['total_ncy_ht'] for m in st.session_state.gls_data)
+        nb_ncy       = sum(m['nb_ncy'] for m in st.session_state.gls_data)
+
+        # Ratios moyens
+        cout_gls_par_colis = total_gls_ht / total_colis if total_colis else 0
+        cout_dpd_par_colis = total_dpd_ht / total_colis if total_colis else 0
+        taux_ncy_moy       = nb_ncy / total_colis if total_colis else 0
+        cout_ncy_par_colis = total_ncy_ht / nb_ncy if nb_ncy else 0
+
+        # Ratio France / Europe depuis par_pays
+        total_eu = 0
+        total_fr = 0
+        total_it = 0
+        cout_eu_gls = 0
+        cout_eu_dpd = 0
+        cout_it_gls = 0
+        cout_it_dpd = 0
+        for m in st.session_state.gls_data:
+            for pays, d in m['par_pays'].items():
+                if pays == 'FR':
+                    total_fr += d['nb']
+                elif pays == 'IT':
+                    total_it += d['nb']
+                    cout_it_gls += d['gls']
+                    cout_it_dpd += d['dpd']
+                else:
+                    total_eu += d['nb']
+                    cout_eu_gls += d['gls']
+                    cout_eu_dpd += d['dpd']
+
+        cout_it_gls_u = cout_it_gls / total_it if total_it else 0
+        cout_it_dpd_u = cout_it_dpd / total_it if total_it else 0
+        cout_eu_gls_u = cout_eu_gls / total_eu if total_eu else cout_gls_par_colis * 1.5
+        cout_eu_dpd_u = cout_eu_dpd / total_eu if total_eu else cout_dpd_par_colis * 1.4
+        pct_eu = (total_eu + total_it) / total_colis if total_colis else 0.1
+
+        st.markdown(f'<div class="alert-green">✅ Mémoire active — basée sur <b>{len(st.session_state.gls_data)} BCF</b> ({total_colis:,} colis) · Coût GLS moy : <b>{cout_gls_par_colis:.2f}€ HT/colis</b> · Coût DPD moy : <b>{cout_dpd_par_colis:.2f}€ HT/colis</b></div>'.replace(',', ' '), unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="alert-gold">⚠️ Aucun BCF chargé — importe des BCF GLS dans la Synthèse pour activer la mémoire. En attendant on utilise des ratios estimés.</div>', unsafe_allow_html=True)
+        # Ratios par défaut (basés sur les 25 mois réels ADC)
+        cout_gls_par_colis = 9.74  # HT moyen réel ADC
+        cout_dpd_par_colis = 8.88  # HT moyen réel ADC
+        taux_ncy_moy       = 0.115
+        cout_ncy_par_colis = 7.45
+        cout_eu_gls_u      = 12.50
+        cout_eu_dpd_u      = 10.80
+        cout_it_gls_u      = 10.50
+        cout_it_dpd_u      = 15.20
+        pct_eu             = 0.10
+
+    st.markdown("---")
+
+    # ── SAISIE ───────────────────────────────────────────────────────────────
+    st.markdown("### Entrez vos volumes estimés")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        colis_fr = st.number_input(
+            "🇫🇷 Colis France",
+            min_value=0, max_value=10000,
+            value=1400, step=50,
+            help="Nombre de colis estimés pour la France ce mois"
+        )
+    with c2:
+        colis_eu = st.number_input(
+            "🌍 Colis Europe (hors Italie)",
+            min_value=0, max_value=5000,
+            value=250, step=25,
+            help="DE, BE, NL, ES, PT, etc. — DPD généralement plus avantageux"
+        )
+    with c3:
+        colis_it = st.number_input(
+            "🇮🇹 Colis Italie",
+            min_value=0, max_value=2000,
+            value=50, step=10,
+            help="Italie — GLS reste plus compétitif (DPD Zone 3 trop cher)"
+        )
+
+    mois_prev = st.selectbox(
+        "Mois de référence (SGO)",
+        list(reversed(list(SGO_HISTORIQUE.keys()))),
+        format_func=lambda x: f"{MOIS_NOMS[x[1]-1]} {x[0]}",
+        key="mois_prev"
+    )
+    sgo_gls_p, sgo_dpd_p = get_sgo_mois(mois_prev[0], mois_prev[1])
+
+    total_colis_prev = colis_fr + colis_eu + colis_it
+
+    if total_colis_prev > 0 and st.button("📊 Calculer la prévision", type="primary", use_container_width=True):
+
+        # ── CALCULS FRANCE ───────────────────────────────────────────────────
+        # Ajustement SGO par rapport à la base historique
+        sgo_ratio_gls = (1 + sgo_gls_p) / (1 + 0.20)  # ratio vs SGO moyen base
+        sgo_ratio_dpd = (1 + sgo_dpd_p) / (1 + 0.18)
+
+        # GLS France
+        gls_fr_pu   = cout_gls_par_colis * sgo_ratio_gls
+        ncy_fr      = int(colis_fr * taux_ncy_moy)
+        ncy_fr_ht   = ncy_fr * cout_ncy_par_colis
+        total_gls_fr = colis_fr * gls_fr_pu + ncy_fr_ht
+
+        # DPD France
+        dpd_fr_pu    = cout_dpd_par_colis * sgo_ratio_dpd
+        total_dpd_fr = colis_fr * dpd_fr_pu
+
+        # ── CALCULS EUROPE (hors IT) ─────────────────────────────────────────
+        total_gls_eu = colis_eu * cout_eu_gls_u * sgo_ratio_gls
+        total_dpd_eu = colis_eu * cout_eu_dpd_u * sgo_ratio_dpd
+
+        # ── CALCULS ITALIE ───────────────────────────────────────────────────
+        total_gls_it = colis_it * cout_it_gls_u * sgo_ratio_gls
+        total_dpd_it = colis_it * cout_it_dpd_u * sgo_ratio_dpd
+
+        # ── STRATÉGIE OPTIMALE ───────────────────────────────────────────────
+        # Italie → GLS | Reste → DPD
+        total_optimal = total_dpd_fr + total_dpd_eu + total_gls_it
+
+        # ── TOTAUX ───────────────────────────────────────────────────────────
+        total_gls_all = total_gls_fr + total_gls_eu + total_gls_it
+        total_dpd_all = total_dpd_fr + total_dpd_eu + total_dpd_it
+
+        eco_dpd    = (total_gls_all - total_dpd_all) * 1.20
+        eco_hybrid = (total_gls_all - total_optimal) * 1.20
+
+        st.markdown("---")
+        st.markdown("### 📊 Résultats")
+
+        # KPIs globaux
+        c1,c2,c3,c4 = st.columns(4)
+        with c1: st.markdown(kpi("Total colis", f"{total_colis_prev:,}".replace(',', ' '), f"🇫🇷 {colis_fr} · 🌍 {colis_eu} · 🇮🇹 {colis_it}", 'blue'), unsafe_allow_html=True)
+        with c2: st.markdown(kpi("GLS 100% TTC", f"{total_gls_all*1.20:,.0f}€".replace(',', ' '), "tout en GLS"), unsafe_allow_html=True)
+        with c3: st.markdown(kpi("DPD 100% TTC", f"{total_dpd_all*1.20:,.0f}€".replace(',', ' '), "tout en DPD"), unsafe_allow_html=True)
+        with c4:
+            style = 'green' if eco_dpd > 0 else 'red'
+            st.markdown(kpi("Économie DPD", f"{eco_dpd:+,.0f}€ TTC".replace(',', ' '), "vs tout GLS", style), unsafe_allow_html=True)
+
+        # Stratégie hybride
+        st.markdown('<div class="section-title">🎯 Stratégie optimale recommandée</div>', unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"""
+            <div style="background:#0a0c14;border:1px solid #1e2235;border-radius:12px;padding:20px;">
+                <div style="font-size:13px;color:#5a6080;margin-bottom:12px;text-transform:uppercase;letter-spacing:.1em;">Répartition recommandée</div>
+                <div style="margin-bottom:8px;"><span class="badge-dpd">DPD</span> &nbsp; France : <b style="color:#F0F2F8;">{colis_fr} colis</b></div>
+                <div style="margin-bottom:8px;"><span class="badge-dpd">DPD</span> &nbsp; Europe hors IT : <b style="color:#F0F2F8;">{colis_eu} colis</b></div>
+                <div style="margin-bottom:8px;"><span class="badge-gls">GLS</span> &nbsp; Italie : <b style="color:#F0F2F8;">{colis_it} colis</b></div>
+                <div style="margin-top:16px;padding-top:12px;border-top:1px solid #1e2235;">
+                    <div style="font-size:11px;color:#5a6080;">Coût total estimé TTC</div>
+                    <div style="font-size:28px;font-weight:800;font-family:DM Mono,monospace;color:#22c55e;">{total_optimal*1.20:,.0f}€</div>
+                </div>
+            </div>""".replace(',', ' '), unsafe_allow_html=True)
+
+        with col2:
+            st.markdown(f"""
+            <div style="background:#0a0c14;border:1px solid #1e2235;border-radius:12px;padding:20px;">
+                <div style="font-size:13px;color:#5a6080;margin-bottom:12px;text-transform:uppercase;letter-spacing:.1em;">Économies vs tout GLS</div>
+                <div style="margin-bottom:8px;font-size:13px;color:#d0d8f0;">Économie stratégie hybride : <b style="color:#22c55e;">+{eco_hybrid:,.0f}€ TTC</b></div>
+                <div style="margin-bottom:8px;font-size:13px;color:#d0d8f0;">NCY évitée (DPD France) : <b style="color:#22c55e;">+{ncy_fr_ht*1.20:,.0f}€ TTC</b></div>
+                <div style="margin-bottom:8px;font-size:13px;color:#d0d8f0;">Avantage DPD Europe : <b style="color:#22c55e;">+{(total_gls_eu-total_dpd_eu)*1.20:,.0f}€ TTC</b></div>
+                <div style="margin-bottom:8px;font-size:13px;color:#d0d8f0;">Avantage GLS Italie : <b style="color:#3b82f6;">{(total_dpd_it-total_gls_it)*1.20:,.0f}€ TTC gardé</b></div>
+                <div style="margin-top:16px;padding-top:12px;border-top:1px solid #1e2235;">
+                    <div style="font-size:11px;color:#5a6080;">Projection annuelle</div>
+                    <div style="font-size:28px;font-weight:800;font-family:DM Mono,monospace;color:#22c55e;">+{eco_hybrid*1.20*12:,.0f}€/an</div>
+                </div>
+            </div>""".replace(',', ' '), unsafe_allow_html=True)
+
+        # Tableau détaillé par zone
+        st.markdown('<div class="section-title">📋 Détail par zone</div>', unsafe_allow_html=True)
+        rows_prev = [
+            {
+                'Zone': '🇫🇷 France',
+                'Colis': colis_fr,
+                'GLS HT': f"{total_gls_fr:,.0f}€".replace(',', ' '),
+                'GLS TTC': f"{total_gls_fr*1.20:,.0f}€".replace(',', ' '),
+                'DPD HT': f"{total_dpd_fr:,.0f}€".replace(',', ' '),
+                'DPD TTC': f"{total_dpd_fr*1.20:,.0f}€".replace(',', ' '),
+                'Éco TTC': f"{(total_gls_fr-total_dpd_fr)*1.20:+,.0f}€".replace(',', ' '),
+                'NCY estimée': f"{ncy_fr_ht*1.20:,.0f}€ TTC ({ncy_fr} colis)".replace(',', ' '),
+                'Recommandation': '🔴 DPD',
+            },
+            {
+                'Zone': '🌍 Europe (hors IT)',
+                'Colis': colis_eu,
+                'GLS HT': f"{total_gls_eu:,.0f}€".replace(',', ' '),
+                'GLS TTC': f"{total_gls_eu*1.20:,.0f}€".replace(',', ' '),
+                'DPD HT': f"{total_dpd_eu:,.0f}€".replace(',', ' '),
+                'DPD TTC': f"{total_dpd_eu*1.20:,.0f}€".replace(',', ' '),
+                'Éco TTC': f"{(total_gls_eu-total_dpd_eu)*1.20:+,.0f}€".replace(',', ' '),
+                'NCY estimée': '0€ (DPD seuil 300cm)',
+                'Recommandation': '🔴 DPD',
+            },
+            {
+                'Zone': '🇮🇹 Italie',
+                'Colis': colis_it,
+                'GLS HT': f"{total_gls_it:,.0f}€".replace(',', ' '),
+                'GLS TTC': f"{total_gls_it*1.20:,.0f}€".replace(',', ' '),
+                'DPD HT': f"{total_dpd_it:,.0f}€".replace(',', ' '),
+                'DPD TTC': f"{total_dpd_it*1.20:,.0f}€".replace(',', ' '),
+                'Éco TTC': f"{(total_gls_it-total_dpd_it)*1.20:+,.0f}€".replace(',', ' '),
+                'NCY estimée': 'N/A',
+                'Recommandation': '🔵 GLS',
+            },
+        ]
+        st.dataframe(pd.DataFrame(rows_prev), use_container_width=True, hide_index=True)
+
+        # Alerte NCY
+        if ncy_fr > 0:
+            st.markdown(f'<div class="alert-red">⚠️ NCY estimée ce mois : <b>{ncy_fr} colis</b> ({taux_ncy_moy*100:.1f}% de taux historique) → <b>{ncy_fr_ht*1.20:,.0f}€ TTC</b> — évitée en totalité avec DPD</div>'.replace(',', ' '), unsafe_allow_html=True)
+        if colis_it > 0 and (total_dpd_it - total_gls_it) * 1.20 > 100:
+            st.markdown(f'<div class="alert-gold">🇮🇹 Italie : garder GLS — DPD Zone 3 vous coûterait <b>+{(total_dpd_it-total_gls_it)*1.20:,.0f}€ TTC</b> de plus ce mois</div>'.replace(',', ' '), unsafe_allow_html=True)
+
+        # Ratios utilisés
+        with st.expander("🔍 Ratios utilisés pour ce calcul"):
+            st.markdown(f"""
+            | Paramètre | Valeur |
+            |---|---|
+            | Coût GLS moyen/colis HT | {cout_gls_par_colis:.2f}€ |
+            | Coût DPD moyen/colis HT | {cout_dpd_par_colis:.2f}€ |
+            | Taux NCY historique | {taux_ncy_moy*100:.1f}% |
+            | Coût NCY/colis HT | {cout_ncy_par_colis:.2f}€ |
+            | SGO GLS net | {sgo_gls_p*100:.2f}% |
+            | SGO DPD | {sgo_dpd_p*100:.2f}% |
+            | Source | {len(st.session_state.gls_data) if has_memory else 'Ratios par défaut ADC 25 mois'} BCF historiques |
+            """)
