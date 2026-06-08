@@ -668,7 +668,7 @@ with tab3:
 
 # ════════════ TAB 4 — SIMULATEUR ════════════
 with tab4:
-    st.markdown('<div class="section-title">🔢 Simulateur tarifaire</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🔢 Simulateur tarifaire — colis par colis</div>', unsafe_allow_html=True)
     c1,c2,c3 = st.columns(3)
     with c1: poids_sim = st.number_input("Poids (kg)", 0.1, 30.0, 5.0, 0.1)
     with c2: pays_sim = st.selectbox("Pays", ['FR','DE','BE','NL','ES','PT','IT','PL','AT','SE','DK'])
@@ -690,6 +690,93 @@ with tab4:
         'Écart':f"{cout_gls(k,'FR',sg)[1]-cout_dpd(k,'FR',sd)[1]:+.2f}€",
         'NCY':">4.5kg" if k>=4.5 else "—"} for k in [1,2,3,4,5,6,7,8,9,10,12,15,20]]
     aggrid_table(pd.DataFrame(rows), height=380)
+
+    # ── SIMULATEUR DE RENÉGOCIATION TARIFAIRE ────────────────────────────────
+    st.markdown('<div class="section-title">📊 Simulateur de renégociation — Impact hausse/baisse tarifaire</div>', unsafe_allow_html=True)
+    st.markdown("<small style='color:#5a6080;'>Simule l'impact d'une variation de tarif sur ton coût annuel et compare avec l'autre transporteur</small>", unsafe_allow_html=True)
+
+    col_rn1, col_rn2 = st.columns(2)
+    with col_rn1:
+        transporteur_rn = st.selectbox("Transporteur à simuler", ["DPD", "GLS"], key="tr_rn")
+        variation_pct = st.slider(
+            "Variation tarifaire (%)",
+            min_value=-15.0, max_value=15.0, value=0.0, step=0.5,
+            format="%.1f%%",
+            help="Positif = hausse (transporteur plus cher) · Négatif = baisse (remise négociée)"
+        )
+    with col_rn2:
+        nb_colis_rn = st.number_input(
+            "Volume annuel (colis/an)",
+            min_value=100, max_value=200000,
+            value=18000, step=500,
+            help="Ton volume annuel total"
+        )
+        cout_moy_rn = st.number_input(
+            "Coût moyen actuel HT/colis",
+            min_value=1.0, max_value=30.0,
+            value=float(round(st.session_state.get('r_dpd_pu' if transporteur_rn=='DPD' else 'r_gls_pu', 8.88) if 'r_dpd_pu' in st.session_state else 8.88, 2)),
+            step=0.01, format="%.2f",
+            help="Issu de vos BCF réels si chargés, sinon ajustez manuellement"
+        )
+
+    # Calculs
+    cout_actuel_an   = nb_colis_rn * cout_moy_rn
+    cout_nouveau_u   = cout_moy_rn * (1 + variation_pct/100)
+    cout_nouveau_an  = nb_colis_rn * cout_nouveau_u
+    impact_an_ht     = cout_nouveau_an - cout_actuel_an
+    impact_an_ttc    = impact_an_ht * 1.20
+
+    # Comparaison avec l'autre transporteur
+    autre_transp = "GLS" if transporteur_rn == "DPD" else "DPD"
+    cout_autre_u = float(st.session_state.get('r_gls_pu' if autre_transp=='GLS' else 'r_dpd_pu',
+                         9.74 if autre_transp=='GLS' else 8.88))
+    cout_autre_an = nb_colis_rn * cout_autre_u
+
+    # Affichage résultats
+    st.markdown("---")
+    c1,c2,c3,c4 = st.columns(4)
+    with c1:
+        st.markdown(kpi(f"{transporteur_rn} actuel HT/colis", f"{cout_moy_rn:.2f}€", "base actuelle", 'blue'), unsafe_allow_html=True)
+    with c2:
+        style_v = 'red' if variation_pct > 0 else ('green' if variation_pct < 0 else 'gold')
+        st.markdown(kpi(f"{transporteur_rn} nouveau HT/colis", f"{cout_nouveau_u:.2f}€", f"{variation_pct:+.1f}%", style_v), unsafe_allow_html=True)
+    with c3:
+        style_i = 'red' if impact_an_ttc > 0 else 'green'
+        st.markdown(kpi("Impact annuel TTC", f"{impact_an_ttc:+,.0f}€".replace(',', ' '), f"{nb_colis_rn:,} colis".replace(',', ' '), style_i), unsafe_allow_html=True)
+    with c4:
+        diff_avec_autre = (cout_nouveau_an - cout_autre_an) * 1.20
+        style_c = 'green' if diff_avec_autre < 0 else 'red'
+        gagnant = transporteur_rn if diff_avec_autre < 0 else autre_transp
+        st.markdown(kpi(f"vs {autre_transp} ({cout_autre_u:.2f}€/c)", f"{diff_avec_autre:+,.0f}€ TTC/an".replace(',', ' '), f"→ {gagnant} moins cher", style_c), unsafe_allow_html=True)
+
+    # Message principal
+    if variation_pct == 0:
+        st.markdown(f'<div class="alert-gold">📊 Pas de variation — déplace le slider pour simuler une hausse ou une remise</div>', unsafe_allow_html=True)
+    elif variation_pct > 0:
+        st.markdown(f'<div class="alert-red">📈 Hausse {transporteur_rn} de {variation_pct:.1f}% → <b>+{impact_an_ttc:,.0f}€ TTC/an</b> de surcoût — {gagnant} devient {"encore plus" if gagnant==autre_transp else ""} intéressant</div>'.replace(',', ' '), unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="alert-green">📉 Remise {transporteur_rn} de {abs(variation_pct):.1f}% négociée → <b>{impact_an_ttc:,.0f}€ TTC/an</b> d\'économie supplémentaire</div>'.replace(',', ' '), unsafe_allow_html=True)
+
+    # Tableau de simulation complète -10% à +10% par pas de 0.5%
+    st.markdown('<div class="section-title">📋 Table de simulation complète</div>', unsafe_allow_html=True)
+    rows_rn = []
+    for v in [-10, -7.5, -5, -4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 5, 7.5, 10]:
+        c_new_u  = cout_moy_rn * (1 + v/100)
+        c_new_an = nb_colis_rn * c_new_u
+        imp_ttc  = (c_new_an - cout_actuel_an) * 1.20
+        diff_au  = (c_new_an - cout_autre_an) * 1.20
+        gag      = transporteur_rn if diff_au < 0 else autre_transp
+        rows_rn.append({
+            'Variation': f"{v:+.1f}%",
+            f'{transporteur_rn} HT/colis': f"{c_new_u:.2f}€",
+            f'{transporteur_rn} coût/an TTC': f"{c_new_an*1.20:,.0f}€".replace(',', ' '),
+            'Impact vs actuel TTC': f"{imp_ttc:+,.0f}€".replace(',', ' '),
+            f'vs {autre_transp} TTC/an': f"{diff_au:+,.0f}€".replace(',', ' '),
+            'Gagnant': f"{'✅ ' if gag==transporteur_rn else '🔄 '}{gag}",
+        })
+    df_rn = pd.DataFrame(rows_rn)
+    # Mettre en évidence la ligne actuelle (variation 0)
+    st.dataframe(df_rn, use_container_width=True, hide_index=True)
 
 # ════════════ TAB 5 — HISTORIQUE ════════════
 with tab5:
